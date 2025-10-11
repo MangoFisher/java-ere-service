@@ -1,0 +1,76 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.java.ere</groupId>
+  <artifactId>java-ere-service</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0-SNAPSHOT</version>
+  <name>java-ere-service</name>
+  <url>http://maven.apache.org</url>
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+     <!-- JavaParser核心 -->
+    <dependency>
+        <groupId>com.github.javaparser</groupId>
+        <artifactId>javaparser-core</artifactId>
+        <version>3.25.8</version>
+    </dependency>
+    <!-- JavaParser类型解析插件 -->
+    <dependency>
+        <groupId>com.github.javaparser</groupId>
+        <artifactId>javaparser-symbol-solver-core</artifactId>
+        <version>3.25.8</version>
+    </dependency>
+    <!-- 轻量Web框架 -->
+    <dependency>
+        <groupId>com.sparkjava</groupId>
+        <artifactId>spark-core</artifactId>
+        <version>2.9.4</version>
+    </dependency>
+    <!-- JSON处理工具 -->
+    <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.8.9</version>
+    </dependency>
+  </dependencies>
+  <!-- 打包配置：指定主类为com.java.ere.App -->
+  <build>
+      <plugins>
+          <plugin>
+              <artifactId>maven-assembly-plugin</artifactId>
+              <configuration>
+                  <archive>
+                      <manifest>
+                          <mainClass>com.java.ere.App</mainClass> <!-- 包名更新为com.java.ere -->
+                      </manifest>
+                  </archive>
+                  <descriptorRefs>
+                      <descriptorRef>jar-with-dependencies</descriptorRef>
+                  </descriptorRefs>
+              </configuration>
+              <executions>
+                  <execution>
+                      <id>make-assembly</id>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>single</goal>
+                      </goals>
+                  </execution>
+              </executions>
+          </plugin>
+      </plugins>
+  </build>
+  <!-- 阿里云 Maven 镜像（加速依赖下载）-->
+  <repositories>
+    <repository>
+        <id>aliyunmaven</id>
+        <url>https://maven.aliyun.com/repository/public</url>
+    </repository>
+</repositories>
+</project>
