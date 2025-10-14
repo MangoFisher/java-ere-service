@@ -1,6 +1,9 @@
-package com.java.ere;
+package com.java.ere.entry;
 
 import com.google.gson.Gson;
+import com.java.ere.CodeParser;
+import com.java.ere.Entity;
+
 import java.io.File;
 import java.util.Map;
 

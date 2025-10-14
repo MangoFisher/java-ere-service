@@ -1,0 +1,185 @@
+# Java ERE 配置文件说明文档
+# 
+# 本文档说明如何使用和配置 Java ERE 项目分析工具
+# 配置文件使用 YAML 格式（参见 analysis-config.yml）
+
+===============================================================================
+一、配置文件使用方式
+===============================================================================
+
+方式1: 使用默认配置文件
+  mvn exec:java -Dexec.mainClass="com.java.ere.entry.ConfigFileMain"
+  # 默认读取项目根目录的 analysis-config.yml
+
+方式2: 指定配置文件路径
+  mvn exec:java -Dexec.mainClass="com.java.ere.entry.ConfigFileMain" \
+    -Dexec.args="/path/to/your-config.yml"
+
+方式3: 在代码中加载
+  AnalysisConfig config = AnalysisConfig.loadFromYaml("my-config.yml");
+  ProjectAnalyzer analyzer = new ProjectAnalyzer();
+  Map<String, Entity> result = analyzer.analyze(config);
+
+===============================================================================
+二、配置文件结构说明
+===============================================================================
+
+### 1. 项目基本信息 (project)
+
+project:
+  name: "我的项目名称"          # 项目名称（可选）
+  root: "/path/to/project"      # 项目根路径（必需）
+  packages:                      # 项目包名列表（必需）
+    - "com.example"
+    - "cn.yourcompany"
+
+说明：
+- root: 项目的绝对路径
+- packages: 用于识别哪些是项目代码，哪些是第三方库
+
+
+### 2. 源码路径 (sources)
+
+sources:
+  - "src/main/java"
+  - "src/test/java"
+
+说明：
+- 相对于项目根路径
+- 用于符号解析器加载所有源码
+- 通常不需要修改
+
+
+### 3. 分析配置 (analysis)
+
+analysis:
+  includes:                             # 包含规则
+    - "src/main/java/**/*.java"         # 所有主代码
+    - "**/service/**"                   # service 包下所有文件
+    - "**/*Controller.java"             # 所有 Controller 类
+  
+  excludes:                             # 排除规则（优先级更高）
+    - "**/test/**"                      # 排除测试目录
+    - "**/generated/**"                 # 排除生成代码
+    - "**/*Test.java"                   # 排除测试文件
+    - "**/*Mapper.java"                 # 排除 Mapper 文件
+    - "**/*DO.java"                     # 排除数据对象
+    - "**/*DTO.java"                    # 排除传输对象
+
+Glob 模式语法：
+- *         匹配单层路径中的任意字符
+- **        匹配任意层级的目录
+- ?         匹配单个字符
+- [abc]     匹配括号中的任意字符
+
+
+### 4. 符号解析器配置 (symbolResolver)
+
+symbolResolver:
+  includeJdk: true                      # 是否包含 JDK 类（通常保持 true）
+  
+  dependencies:
+    mode: "essential"                   # 依赖模式: none / essential / all
+    
+    essentialPatterns:                  # essential 模式下加载的核心库
+      - "spring-context"
+      - "spring-beans"
+      - "lombok"
+      - "mybatis"
+      - "slf4j-api"
+    
+    localDir: "target/dependency"       # 依赖目录
+
+依赖模式说明：
+- none: 不加载第三方库（最快，但可能无法解析部分调用）
+- essential: 只加载核心库（推荐，平衡性能和准确性）
+- all: 加载所有依赖（最慢，但最准确）
+
+准备依赖（essential 或 all 模式需要）：
+  cd /path/to/your/project
+  mvn dependency:copy-dependencies -DoutputDirectory=target/dependency
+
+
+### 5. 实体提取配置 (extraction)
+
+extraction:
+  thirdPartyCallStrategy: "mark"        # 第三方库调用处理: ignore / mark / full
+  includeAnnotations: true              # 是否提取注解信息
+  includeJavadoc: true                  # 是否提取 Javadoc
+
+第三方库调用处理策略：
+- ignore: 完全忽略第三方库调用
+- mark: 标记为外部依赖（推荐，保留信息但不创建实体）
+- full: 完整记录（不推荐，会导致图谱爆炸）
+
+
+===============================================================================
+三、常用配置场景
+===============================================================================
+
+### 场景1: 分析整个 Spring Boot 项目
+
+analysis:
+  includes:
+    - "src/main/java/**/*.java"
+  excludes:
+    - "**/test/**"
+    - "**/config/**"
+    - "**/*Config.java"
+
+
+### 场景2: 只分析 service 层
+
+analysis:
+  includes:
+    - "**/service/**"
+  excludes:
+    - "**/*Test.java"
+
+
+### 场景3: 排除自动生成的代码
+
+analysis:
+  excludes:
+    - "**/generated/**"
+    - "**/*Mapper.java"
+    - "**/*DO.java"
+    - "**/*DTO.java"
+    - "**/*VO.java"
+
+
+### 场景4: 分析特定模块（多模块项目）
+
+project:
+  root: "/path/to/multi-module-project"
+  
+analysis:
+  includes:
+    - "user-service/src/main/java/**/*.java"
+
+
+===============================================================================
+四、Glob 模式详解
+===============================================================================
+
+语法：
+  *         匹配单层路径中的任意字符（不包括路径分隔符）
+  **        匹配任意层级的目录
+  ?         匹配单个字符
+  [abc]     匹配括号中的任意一个字符
+
+常用示例：
+  **/*.java                      所有 Java 文件
+  **/service/**                  service 目录下的所有文件
+  **/*Controller.java            所有 Controller 结尾的文件
+  src/main/**                    src/main 下的所有文件
+  **/test/**/*Test.java          test 目录下所有 Test 文件
+  **/*{Service,Controller}.java  所有 Service 或 Controller 类
+
+
+===============================================================================
+五、完整配置文件示例
+===============================================================================
+
+请参考项目根目录的 analysis-config.yml 文件，这是一个包含所有配置项的完整示例。
+你可以复制该文件并根据自己的项目进行修改。

@@ -1,11 +1,16 @@
-package com.java.ere; // 包路径更新
+package com.java.ere.entry;
 
 import com.google.gson.Gson;
+import com.java.ere.CodeParser;
+import com.java.ere.Entity;
 import spark.Spark;
+
 import java.io.File;
-import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Java ERE 项目分析服务，提供REST API接口
+ */
 public class App {
     private static final CodeParser parser = new CodeParser();
     private static final Gson gson = new Gson();
