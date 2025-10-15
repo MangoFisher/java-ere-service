@@ -906,8 +906,10 @@ RETURN caller
 
 
 ## 如何优化 overrides 的性能？
+
 ### 优化策略1：使用 @Override 注解（快速但不完整）
-java
+
+```java
 // 退化方案：只检查有 @Override 注解的方法
 if (methodDecl.getAnnotationByName("Override").isPresent()) {
     // 这个方法肯定是重写的，但重写了哪个方法？
@@ -915,16 +917,18 @@ if (methodDecl.getAnnotationByName("Override").isPresent()) {
     String methodName = methodDecl.getNameAsString();
     // 假设重写的是父类/接口中同名方法
 }
-优点：
+```
 
-✅ 速度快（不需要符号解析）
-✅ 准确率高（开发者标注的）
-缺点：
+**优点：**
+- ✅ 速度快（不需要符号解析）
+- ✅ 准确率高（开发者标注的）
 
-❌ 不完整（没有 @Override 的重写方法检测不到）
-❌ 不知道重写的是哪个具体方法
+**缺点：**
+- ❌ 不完整（没有 @Override 的重写方法检测不到）
+- ❌ 不知道重写的是哪个具体方法
 ### 优化策略2：缓存类型信息
-java
+
+```java
 // 缓存已解析的类型
 Map<String, ResolvedReferenceTypeDeclaration> typeCache = new HashMap<>();
 
@@ -934,12 +938,14 @@ ResolvedReferenceTypeDeclaration getType(String className) {
     }
     return typeCache.get(className);
 }
-优点：
+```
 
-✅ 避免重复解析
-✅ 提升 50% 性能
+**优点：**
+- ✅ 避免重复解析
+- ✅ 提升 50% 性能
 ### 优化策略3：并行处理
-java
+
+```java
 // 使用并行流
 methodDecls.parallelStream().forEach(method -> {
     try {
@@ -948,53 +954,78 @@ methodDecls.parallelStream().forEach(method -> {
         // 失败就跳过
     }
 });
-优点：
+```
 
-✅ 利用多核 CPU
-✅ 提升 2-4倍 性能
+**优点：**
+- ✅ 利用多核 CPU
+- ✅ 提升 2-4倍 性能
 ### 优化策略4：配置化开关（当前方案）
-yaml
+
+```yaml
 relations:
   overrides: false  # 默认关闭，让用户自己决定是否承担这个性能开销
-优点：
+```
 
-✅ 用户可以根据需求选择
-✅ 大多数场景不需要 overrides
-✅ 性能可控
+**优点：**
+- ✅ 用户可以根据需求选择
+- ✅ 大多数场景不需要 overrides
+- ✅ 性能可控
 
 
-## 常用的neo4j查询语句
+## 常用的Neo4j查询语句
+
 ### 1. 查看IMPLEMENTS关系
+
+```cypher
 MATCH (c:ClassOrInterface)-[r:IMPLEMENTS]->(i:ClassOrInterface) 
 RETURN c, r, i
+```
 
-TODO: 需要考虑函数间多次调用的情况，如函数A内2次或多次调用了函数B，那么在neo4j中，函数A和函数B之间会有多条CALLS关系连线
-### 2. 查看CALLS关系 
+**TODO:** 需要考虑函数间多次调用的情况，如函数A内2次或多次调用了函数B，那么在neo4j中，函数A和函数B之间会有多条CALLS关系连线
+
+### 2. 查看CALLS关系
+
+```cypher
 MATCH (m1:Method)-[r:CALLS]->(m2:Method) 
 RETURN m1, r, m2 
 LIMIT 50
+```
 
 ### 3. 查看所有关系类型统计
+
+```cypher
 MATCH ()-[r]->() 
 RETURN type(r) AS relationshipType, count(*) AS count 
 ORDER BY count DESC
+```
 
 ### 4. 查看完整的方法调用链（带关系）
+
+```cypher
 MATCH path = (m1:Method)-[r:CALLS*1..3]->(m2:Method) 
 RETURN path 
 LIMIT 20
+```
 
 ### 5. 查看某个具体方法的所有关系
+
+```cypher
 MATCH (m:Method {name: 'register'})-[r]-(other) 
 RETURN m, r, other 
 LIMIT 30
+```
 
 ### 6. 查看所有实体间关系（推荐 - 限制数量）
+
+```cypher
 MATCH (a)-[r]->(b) 
 RETURN a, r, b 
 LIMIT 100
+```
 
 ### 7. 查看所有关系的统计摘要
+
+```cypher
 MATCH (a)-[r]->(b)
 RETURN 
   type(r) AS 关系类型,
@@ -1002,8 +1033,11 @@ RETURN
   labels(b)[0] AS 终点实体,
   count(*) AS 关系数量
 ORDER BY 关系数量 DESC
+```
 
 ### 8. 查看核心节点（连接最多的节点）
+
+```cypher
 MATCH (n)-[r]-()
 WITH n, count(r) AS degree
 WHERE degree > 5
@@ -1011,13 +1045,23 @@ MATCH (n)-[r]-(other)
 RETURN n, r, other
 ORDER BY degree DESC
 LIMIT 100
+```
 
 ### 9. 查看完整关系路径（深度1-2层）
+
+```cypher
 MATCH path = (a)-[r*1..2]-(b) 
 RETURN path 
 LIMIT 50
+```
 
-### TIPS:
-Neo4j Browser中，必须在RETURN子句中包含关系变量，图形视图才会显示连线
-✅ RETURN m1, r, m2 - 会显示连线
-❌ RETURN m1, m2 - 只显示孤立节点
+---
+
+## 💡 Neo4j查询技巧
+
+### TIPS
+
+Neo4j Browser中，必须在RETURN子句中包含关系变量，图形视图才会显示连线：
+
+- ✅ `RETURN m1, r, m2` - 会显示连线
+- ❌ `RETURN m1, m2` - 只显示孤立节点
