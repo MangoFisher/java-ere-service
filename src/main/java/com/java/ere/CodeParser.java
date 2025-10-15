@@ -282,8 +282,10 @@ public class CodeParser {
                 extractionConfig.isEntityEnabled("Return")) {
                 // 返回值ID包含方法签名以支持重载
                 String returnId = "return_" + className + "_" + methodName + "(" + paramSignature + ")";
+                String returnType = methodDecl.getType().asString();
                 Entity returnEntity = new Entity(returnId, "Return");
-                returnEntity.addProperty("type", methodDecl.getType().asString());
+                returnEntity.addProperty("name", returnType);  // 添加name属性用于显示
+                returnEntity.addProperty("type", returnType);
                 entities.put(returnId, returnEntity);
                 methodEntity.addRelation("returns", returnId);
             }
@@ -298,6 +300,7 @@ public class CodeParser {
                     // 创建Exception实体（如果不存在）
                     if (!entities.containsKey(exceptionId)) {
                         Entity exceptionEntity = new Entity(exceptionId, "Exception");
+                        exceptionEntity.addProperty("name", exceptionType);  // 添加name属性用于显示
                         exceptionEntity.addProperty("type", exceptionType);
                         entities.put(exceptionId, exceptionEntity);
                     }

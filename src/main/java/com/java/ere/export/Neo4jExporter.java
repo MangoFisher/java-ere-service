@@ -133,8 +133,9 @@ public class Neo4jExporter {
         String entityType = entity.getType();
         
         // 构建CREATE语句
+        // 标签顺序：Entity在前，具体类型在后，确保具体类型的样式优先级更高
         StringBuilder cypher = new StringBuilder();
-        cypher.append("CREATE (n:").append(entityType).append(":Entity {");
+        cypher.append("CREATE (n:Entity:").append(entityType).append(" {");
         cypher.append("id: '").append(escapedId).append("'");
         cypher.append(", type: '").append(entityType).append("'");
         

@@ -1,118 +1,34 @@
-/* ==================== 节点默认样式 ==================== */
-node {
-  diameter: 50px;
-  color: #A5ABB6;
-  border-color: #9AA1AC;
-  border-width: 2px;
-  text-color-internal: #FFFFFF;
-  font-size: 12px;
-}
-
-/* ==================== 实体类型样式 ==================== */
 node.Method {
-  color: #68BDF6;
-  border-color: #5CA8DB;
-  text-color-internal: #FFFFFF;
-  diameter: 60px;
-  caption: '{name}';
-}
-
-node.ClassOrInterface {
-  color: #6DCE9E;
-  border-color: #60B58B;
-  text-color-internal: #FFFFFF;
-  diameter: 70px;
-  caption: '{name}';
+  color: #FF6B6B;
+  caption: {name};
 }
 
 node.Field {
-  color: #FFB3BA;
-  border-color: #E8A0A6;
-  text-color-internal: #604A0E;
-  diameter: 50px;
-  caption: '{name}';
+  color: #4ECDC4;
+  caption: {name};
 }
 
 node.Parameter {
-  color: #FFD86E;
-  border-color: #EDBA39;
-  text-color-internal: #604A0E;
-  diameter: 45px;
-  caption: '{name}';
+  color: #FFD93D;
+  caption: {name};
 }
 
 node.Return {
-  color: #DE9BF9;
-  border-color: #C880D1;
-  text-color-internal: #FFFFFF;
-  diameter: 45px;
-  caption: '{type}';
+  color: #A78BFA;
+  caption: {name};
+}
+
+node.ClassOrInterface {
+  color: #51CF66;
+  caption: {name};
+}
+
+node.Exception {
+  color: #FF8787;
+  caption: {name};
 }
 
 node.Annotation {
-  color: #A5ABB6;
-  border-color: #9AA1AC;
-  text-color-internal: #FFFFFF;
-  diameter: 40px;
-  caption: '{name}';
-}
-
-/* ==================== 关系默认样式 ==================== */
-relationship {
-  color: #A5ABB6;
-  shaft-width: 1px;
-  font-size: 10px;
-  padding: 3px;
-  text-color-external: #000000;
-  text-color-internal: #FFFFFF;
-  caption: '<type>';
-}
-
-/* ==================== 关系类型样式 ==================== */
-relationship.CALLS {
-  color: #F25A29;
-  shaft-width: 2px;
-  arrow-width: 3px;
-}
-
-relationship.IMPLEMENTS {
-  color: #4356C0;
-  shaft-width: 2.5px;
-  arrow-width: 4px;
-}
-
-relationship.OVERRIDES {
-  color: #FFA500;
-  shaft-width: 2px;
-  arrow-width: 3px;
-}
-
-relationship.ACCESSES {
-  color: #DA7194;
-  shaft-width: 1.5px;
-  arrow-width: 2.5px;
-}
-
-relationship.HAS_PARAMETER {
-  color: #7EB26D;
-  shaft-width: 1.5px;
-  arrow-width: 2.5px;
-}
-
-relationship.RETURNS {
-  color: #57C7E3;
-  shaft-width: 1px;
-  arrow-width: 2px;
-}
-
-relationship.THROWS {
-  color: #C0362C;
-  shaft-width: 1.5px;
-  arrow-width: 2.5px;
-}
-
-relationship.HAS_ANNOTATION {
-  color: #8DCC93;
-  shaft-width: 1px;
-  arrow-width: 2px;
+  color: #CC5DE8;
+  caption: {name};
 }
