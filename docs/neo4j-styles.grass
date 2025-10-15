@@ -1,34 +1,115 @@
-node.Method {
-  color: #FF6B6B;
+
+node.Method[is_external='false'] {
+  color: #E63946;
+  border-color: #C1121F;
+  text-color-internal: #FFFFFF;
   caption: {name};
 }
+
+
+node.Method[is_external='true'] {
+  color: #FF6B35;
+  border-color: #E55934;
+  text-color-internal: #FFFFFF;
+  caption: {full_class_name};
+}
+
 
 node.Field {
   color: #4ECDC4;
+  border-color: #339999;
+  text-color-internal: #FFFFFF;
   caption: {name};
 }
+
 
 node.Parameter {
   color: #FFD93D;
+  border-color: #FAB005;
+  text-color-internal: #000000;
   caption: {name};
 }
+
 
 node.Return {
   color: #A78BFA;
+  border-color: #7C3AED;
+  text-color-internal: #FFFFFF;
   caption: {name};
 }
 
+
 node.ClassOrInterface {
   color: #51CF66;
+  border-color: #2F9E44;
+  text-color-internal: #FFFFFF;
   caption: {name};
 }
 
 node.Exception {
   color: #FF8787;
+  border-color: #FA5252;
+  text-color-internal: #FFFFFF;
   caption: {name};
 }
 
 node.Annotation {
   color: #CC5DE8;
+  border-color: #9C36B5;
+  text-color-internal: #FFFFFF;
   caption: {name};
+}
+
+// ==================== 关系样式 ====================
+
+// 方法调用（区分业务和第三方）
+relationship.CALLS {
+  color: #E63946;
+  shaft-width: 2px;
+  caption: {count};
+}
+
+// 字段访问
+relationship.ACCESSES {
+  color: #4ECDC4;
+  shaft-width: 2px;
+  caption: {count};
+}
+
+// 参数关系
+relationship.HAS_PARAMETER {
+  color: #FFD93D;
+  shaft-width: 1px;
+}
+
+// 返回值关系
+relationship.RETURNS {
+  color: #A78BFA;
+  shaft-width: 1px;
+}
+
+// 实现关系
+relationship.IMPLEMENTS {
+  color: #51CF66;
+  shaft-width: 2px;
+  line-style: dashed;
+}
+
+// 重写关系
+relationship.OVERRIDES {
+  color: #FF922B;
+  shaft-width: 2px;
+  line-style: dashed;
+}
+
+// 抛出异常
+relationship.THROWS {
+  color: #FF8787;
+  shaft-width: 1px;
+}
+
+// 注解关系
+relationship.HAS_ANNOTATION {
+  color: #CC5DE8;
+  shaft-width: 1px;
 }

@@ -1,6 +1,25 @@
 # Java ERE 项目分析配置文件
 # 复制此文件并修改为你的项目配置
 
+# ==================== 快速配置指南 ====================
+# 常见配置组合：
+#
+# 【推荐】日常业务分析（最快、无需JAR包）
+#   symbolResolver.dependencies.mode: "none"
+#   extraction.thirdPartyCallStrategy: "mark"
+#   → 记录第三方依赖到属性，图谱只包含业务代码
+#
+# 【可选】可视化完整调用图（无需JAR包）
+#   symbolResolver.dependencies.mode: "none"
+#   extraction.thirdPartyCallStrategy: "full"
+#   → 创建第三方实体节点，但内部是"空壳"
+#
+# 【高级】完整源码分析（需要JAR包）
+#   symbolResolver.dependencies.mode: "all"
+#   extraction.thirdPartyCallStrategy: "full"
+#   → 分析第三方库内部实现，图谱会很大
+# ====================================================
+
 # 项目基本信息
 project:
   name: "Spring Boot Admin Client by mango"
@@ -28,13 +47,27 @@ symbolResolver:
   # 是否包含 JDK 类
   includeJdk: true
   
-  # 第三方库依赖配置
+  # 第三方库JAR包加载配置（影响符号解析能力）
   dependencies:
-    # 模式: 
-    #  none: 不加载第三方库（最快，但可能无法解析部分调用）
-    #  essential: 只加载核心库（推荐，平衡性能和准确性）
-    #  all: 加载所有依赖（最慢，但最准确）
-    mode: "essential"
+    # 说明：控制是否加载JAR包到符号解析器，用于解析第三方库调用
+    # 注意：即使是 none 模式，AST分析仍能识别大部分第三方调用（基于import语句）
+    # 
+    # 模式选项: 
+    #  none: 不加载JAR包（推荐）
+    #        - 优势：最快启动、无需准备依赖、内存占用低
+    #        - 能力：AST能识别95%+的第三方调用
+    #        - 适合：日常业务分析
+    # 
+    #  essential: 加载 essentialPatterns 配置的核心库
+    #        - 优势：平衡性能和准确性
+    #        - 能力：AST + 符号解析器补充
+    #        - 适合：需要更精确的类型推断
+    # 
+    #  all: 加载 localDir 中所有JAR包
+    #        - 优势：最准确的符号解析
+    #        - 劣势：慢启动、高内存（2GB+）
+    #        - 适合：框架源码分析
+    mode: "none"  # 使用AST+注解推断方案，不需要JAR包
     
     # essential 模式下加载的核心库
     essentialPatterns:
@@ -50,11 +83,28 @@ symbolResolver:
 
 # 实体提取配置
 extraction:
-  # 第三方库调用处理策略: 
-  #  ignore: 完全忽略第三方库调用
-  #  mark: 标记为外部依赖（推荐，保留信息但不创建实体）
-  #  full: 完整记录（不推荐，会导致图谱爆炸）
-  thirdPartyCallStrategy: "mark"
+  # 第三方库调用记录策略（控制如何记录已识别的第三方调用）
+  # 说明：当业务代码调用第三方库（如Spring、MyBatis等）时，如何处理
+  # 注意：这个配置独立于上面的 mode，即使 mode="none" 也能识别第三方调用
+  # 
+  # 策略选项:
+  #  ignore: 完全忽略
+  #        - 不记录任何第三方调用信息
+  #        - 适合：只关心业务代码内部调用链
+  # 
+  #  mark: 标记为外部依赖（推荐）
+  #        - 记录到方法的 external_dependencies 属性中
+  #        - 不为第三方库创建实体节点
+  #        - 优势：保留依赖信息、图谱干净、性能好
+  #        - 适合：影响分析、依赖统计、技术栈评估
+  # 
+  #  full: 创建完整实体和关系
+  #        - 为第三方类和方法创建实体节点
+  #        - 建立业务代码 → 第三方的 calls 关系
+  #        - 劣势：图谱节点数暴增（可能增加数千个节点）
+  #        - 注意：需要配合 mode="all" 才能分析第三方内部实现
+  #        - 适合：可视化完整调用图、框架源码研究
+  thirdPartyCallStrategy: "full"
   
   # 是否提取注解信息（全局开关，影响 has_annotation 关系）
   includeAnnotations: true

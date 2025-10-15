@@ -12,6 +12,12 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.javadoc.Javadoc;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.resolution.declarations.ResolvedMethodDeclaration;
 import com.java.ere.config.ResolverConfig;
 import com.java.ere.config.ExtractionConfig;
@@ -254,11 +260,15 @@ public class CodeParser {
             methodEntity.addProperty("name", methodName);
             methodEntity.addProperty("owner", className);
             methodEntity.addProperty("signature", methodName + "(" + paramSignature + ")");
+            methodEntity.addProperty("is_external", "false");  // 业务代码方法
             
             // 根据配置决定是否提取Javadoc
             if (extractionConfig.isIncludeJavadoc()) {
                 methodEntity.addProperty("business_role", extractJavadoc(methodDecl.getJavadoc()));
             }
+            
+            // 分析方法注解，推断框架回调关系
+            inferFrameworkCallbacksFromAnnotations(methodEntity, methodDecl);
             
             entities.put(id, methodEntity);
 
@@ -394,6 +404,12 @@ public class CodeParser {
             if (methodEntity == null) return;
 
             methodDecl.findAll(MethodCallExpr.class).forEach(callExpr -> {
+                // 优先使用AST分析（不需要JAR包）
+                if (tryASTBasedCallAnalysis(methodEntity, callExpr, cu, className, entities)) {
+                    return;  // AST分析成功，直接返回
+                }
+                
+                // 降级到符号解析器（需要JAR包）
                 try {
                     ResolvedMethodDeclaration resolved = callExpr.resolve();
                     String declaringClass = resolved.declaringType().getQualifiedName();
@@ -420,10 +436,10 @@ public class CodeParser {
                         }
                     } else {
                         // 第三方库调用：根据策略处理
-                        handleThirdPartyCall(methodEntity, declaringClass, calleeMethod);
+                        handleThirdPartyCall(methodEntity, declaringClass, calleeMethod, entities);
                     }
                 } catch (Exception e) {
-                    // 符号解析失败时，尝试简单匹配（用于同类方法调用）
+                    // 符号解析也失败，最后尝试简单匹配（仅用于同类方法调用）
                     trySimpleMethodMatch(methodEntity, callExpr, className, entities);
                 }
             });
@@ -467,7 +483,7 @@ public class CodeParser {
     /**
      * 处理第三方库调用
      */
-    private void handleThirdPartyCall(Entity methodEntity, String declaringClass, String methodName) {
+    private void handleThirdPartyCall(Entity methodEntity, String declaringClass, String methodName, Map<String, Entity> entities) {
         String strategy = extractionConfig.getThirdPartyCallStrategy();
         
         if ("ignore".equals(strategy)) {
@@ -483,8 +499,25 @@ public class CodeParser {
             } else {
                 methodEntity.addProperty("external_dependencies", existingDeps + ", " + externalCall);
             }
+        } else if ("full".equals(strategy)) {
+            // 创建第三方方法实体并建立调用关系
+            String simpleClassName = getSimpleClassName(declaringClass);
+            String thirdPartyMethodId = "method_" + simpleClassName + "_" + methodName + "()";
+            
+            // 如果第三方方法实体不存在，创建它
+            if (!entities.containsKey(thirdPartyMethodId)) {
+                Entity thirdPartyMethod = new Entity(thirdPartyMethodId, "Method");
+                thirdPartyMethod.addProperty("name", methodName);
+                thirdPartyMethod.addProperty("owner", simpleClassName);
+                thirdPartyMethod.addProperty("signature", methodName + "()");
+                thirdPartyMethod.addProperty("is_external", "true");
+                thirdPartyMethod.addProperty("full_class_name", declaringClass);
+                entities.put(thirdPartyMethodId, thirdPartyMethod);
+            }
+            
+            // 建立调用关系
+            methodEntity.addRelation("calls", thirdPartyMethodId);
         }
-        // "full" 策略暂不实现
     }
     
     /**
@@ -670,6 +703,195 @@ public class CodeParser {
     }
     
     /**
+     * 基于AST的方法调用分析（不依赖符号解析器和JAR包）
+     * 返回true表示成功处理，false表示需要降级到其他方案
+     */
+    private boolean tryASTBasedCallAnalysis(Entity methodEntity, MethodCallExpr callExpr,
+                                           CompilationUnit cu, String currentClassName,
+                                           Map<String, Entity> entities) {
+        try {
+            String calledMethodName = callExpr.getNameAsString();
+            Optional<Expression> scope = callExpr.getScope();
+            
+            // 情况1：有scope的调用，如 obj.method() 或 ClassName.method()
+            if (scope.isPresent()) {
+                String scopeStr = scope.get().toString();
+                
+                // 检查是否是super调用
+                if (scopeStr.equals("super")) {
+                    // super调用不处理（父类方法，无法在当前项目找到）
+                    return true;  // 返回true表示已处理（选择忽略）
+                }
+                
+                // 检查是否是this调用
+                if (scopeStr.equals("this")) {
+                    // this调用视为同类调用
+                    return matchSameClassMethod(methodEntity, calledMethodName, currentClassName, entities);
+                }
+                
+                // 尝试推断调用对象的类型
+                String calleeClassName = inferTypeFromScope(scope.get(), cu, currentClassName);
+                
+                if (calleeClassName != null) {
+                    // 判断是否为项目代码
+                    if (isProjectCode(calleeClassName)) {
+                        // 项目内调用：尝试匹配方法
+                        String simpleClassName = getSimpleClassName(calleeClassName);
+                        return matchProjectMethod(methodEntity, simpleClassName, calledMethodName, entities);
+                    } else {
+                        // 第三方库调用：记录到external_dependencies
+                        handleThirdPartyCall(methodEntity, calleeClassName, calledMethodName, entities);
+                        return true;
+                    }
+                }
+            } else {
+                // 情况2：无scope的调用，如 method()，可能是同类方法或静态导入
+                return matchSameClassMethod(methodEntity, calledMethodName, currentClassName, entities);
+            }
+            
+            return false;  // 无法处理，降级到符号解析器
+            
+        } catch (Exception e) {
+            return false;  // 分析失败，降级到符号解析器
+        }
+    }
+    
+    /**
+     * 推断表达式的类型
+     */
+    private String inferTypeFromScope(Expression scope, CompilationUnit cu, String currentClassName) {
+        if (scope instanceof NameExpr) {
+            // 变量名，查找字段或局部变量声明
+            String varName = ((NameExpr) scope).getNameAsString();
+            return findVariableType(varName, cu, currentClassName);
+            
+        } else if (scope instanceof FieldAccessExpr) {
+            // 字段访问，如 this.field 或 obj.field
+            FieldAccessExpr fieldAccess = (FieldAccessExpr) scope;
+            // 递归推断scope的类型
+            String scopeType = inferTypeFromScope(fieldAccess.getScope(), cu, currentClassName);
+            if (scopeType != null) {
+                // TODO: 这里可以进一步查找scopeType类中的字段类型
+                return null;  // 暂时返回null，降级到符号解析器
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 查找变量的类型（字段或局部变量）
+     */
+    private String findVariableType(String varName, CompilationUnit cu, String currentClassName) {
+        // 1. 在当前类中查找字段声明
+        for (ClassOrInterfaceDeclaration classDecl : cu.findAll(ClassOrInterfaceDeclaration.class)) {
+            if (classDecl.getNameAsString().equals(currentClassName)) {
+                for (FieldDeclaration field : classDecl.getFields()) {
+                    for (VariableDeclarator variable : field.getVariables()) {
+                        if (variable.getNameAsString().equals(varName)) {
+                            Type fieldType = field.getCommonType();
+                            return resolveTypeFromImports(fieldType.asString(), cu);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 2. TODO: 查找局部变量声明（更复杂，需要scope分析）
+        
+        return null;
+    }
+    
+    /**
+     * 从import语句解析类型的全限定名
+     */
+    private String resolveTypeFromImports(String simpleTypeName, CompilationUnit cu) {
+        // 去除泛型参数
+        String baseType = simpleTypeName.split("<")[0].trim();
+        
+        // 检查是否已经是全限定名
+        if (baseType.contains(".")) {
+            return baseType;
+        }
+        
+        // 1. 检查java.lang包（默认导入）
+        if (isJavaLangClass(baseType)) {
+            return "java.lang." + baseType;
+        }
+        
+        // 2. 在import语句中查找
+        for (ImportDeclaration importDecl : cu.getImports()) {
+            String importName = importDecl.getNameAsString();
+            
+            if (importDecl.isAsterisk()) {
+                // 通配符导入，无法确定具体类
+                continue;
+            }
+            
+            if (importName.endsWith("." + baseType)) {
+                return importName;
+            }
+        }
+        
+        // 3. 检查是否是同包的类
+        Optional<String> packageName = cu.getPackageDeclaration()
+            .map(pd -> pd.getNameAsString());
+        if (packageName.isPresent()) {
+            return packageName.get() + "." + baseType;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 检查是否是java.lang包中的类
+     */
+    private boolean isJavaLangClass(String className) {
+        Set<String> javaLangClasses = new HashSet<>(Arrays.asList(
+            "String", "Object", "Class", "Integer", "Long", "Double", "Float",
+            "Boolean", "Byte", "Short", "Character", "System", "Math",
+            "Thread", "Runnable", "Exception", "RuntimeException"
+        ));
+        return javaLangClasses.contains(className);
+    }
+    
+    /**
+     * 匹配同类方法调用
+     */
+    private boolean matchSameClassMethod(Entity methodEntity, String calledMethodName,
+                                        String currentClassName, Map<String, Entity> entities) {
+        String prefix = "method_" + currentClassName + "_" + calledMethodName + "(";
+        
+        for (String entityId : entities.keySet()) {
+            if (entityId.startsWith(prefix) && !entityId.equals(methodEntity.getId())) {
+                // 找到匹配且不是自己
+                methodEntity.addRelation("calls", entityId);
+                return true;
+            }
+        }
+        
+        return false;  // 未找到匹配
+    }
+    
+    /**
+     * 匹配项目内方法调用
+     */
+    private boolean matchProjectMethod(Entity methodEntity, String className,
+                                      String methodName, Map<String, Entity> entities) {
+        String prefix = "method_" + className + "_" + methodName + "(";
+        
+        for (String entityId : entities.keySet()) {
+            if (entityId.startsWith(prefix)) {
+                methodEntity.addRelation("calls", entityId);
+                return true;
+            }
+        }
+        
+        return false;  // 未找到匹配（可能是重载方法无法精确匹配）
+    }
+    
+    
+    /**
      * 当符号解析失败时，尝试简单匹配同类方法调用
      * 这对于同类方法调用特别有用，因为有时符号解析可能失败
      */
@@ -683,8 +905,8 @@ public class CodeParser {
             String prefix = "method_" + currentClassName + "_" + calledMethodName + "(";
             
             for (String entityId : entities.keySet()) {
-                if (entityId.startsWith(prefix)) {
-                    // 找到可能的匹配，建立调用关系
+                if (entityId.startsWith(prefix) && !entityId.equals(methodEntity.getId())) {
+                    // 找到可能的匹配，建立调用关系（排除自己）
                     methodEntity.addRelation("calls", entityId);
                     // 注意：这里可能会匹配到多个重载方法，但通常只有一个是真正被调用的
                     // 在无法精确解析的情况下，保守地建立关系
@@ -698,5 +920,100 @@ public class CodeParser {
 
     private String extractJavadoc(Optional<Javadoc> javadocOpt) {
         return javadocOpt.map(jc -> jc.toText().trim()).orElse("无描述");
+    }
+    
+    /**
+     * 从方法注解推断框架回调关系
+     * 例如：@EventListener → Spring会调用此方法
+     */
+    private void inferFrameworkCallbacksFromAnnotations(Entity methodEntity, MethodDeclaration methodDecl) {
+        for (com.github.javaparser.ast.expr.AnnotationExpr annotation : methodDecl.getAnnotations()) {
+            String annotationName = annotation.getNameAsString();
+            String frameworkCaller = getFrameworkCallerFromAnnotation(annotationName);
+            
+            if (frameworkCaller != null) {
+                // 记录框架回调信息到属性中
+                String existingCallbacks = methodEntity.getProperties().get("framework_callbacks");
+                if (existingCallbacks == null) {
+                    methodEntity.addProperty("framework_callbacks", frameworkCaller + " (@" + annotationName + ")");
+                } else {
+                    methodEntity.addProperty("framework_callbacks", 
+                        existingCallbacks + ", " + frameworkCaller + " (@" + annotationName + ")");
+                }
+            }
+        }
+    }
+    
+    /**
+     * 根据注解名推断调用的框架
+     */
+    private String getFrameworkCallerFromAnnotation(String annotationName) {
+        // Spring框架注解
+        if (annotationName.equals("EventListener")) {
+            return "Spring EventPublisher";
+        }
+        if (annotationName.equals("PostConstruct")) {
+            return "Spring Container (initialization)";
+        }
+        if (annotationName.equals("PreDestroy")) {
+            return "Spring Container (destruction)";
+        }
+        if (annotationName.equals("Scheduled")) {
+            return "Spring Task Scheduler";
+        }
+        if (annotationName.equals("Async")) {
+            return "Spring Async Executor";
+        }
+        if (annotationName.equals("Transactional")) {
+            return "Spring Transaction Manager";
+        }
+        if (annotationName.contains("Mapping")) {  // GetMapping, PostMapping等
+            return "Spring MVC DispatcherServlet";
+        }
+        if (annotationName.equals("JmsListener")) {
+            return "Spring JMS Container";
+        }
+        if (annotationName.equals("KafkaListener")) {
+            return "Spring Kafka Container";
+        }
+        if (annotationName.equals("RabbitListener")) {
+            return "Spring AMQP Container";
+        }
+        
+        // JPA回调注解
+        if (annotationName.equals("PrePersist")) {
+            return "JPA EntityManager (before persist)";
+        }
+        if (annotationName.equals("PostPersist")) {
+            return "JPA EntityManager (after persist)";
+        }
+        if (annotationName.equals("PreUpdate")) {
+            return "JPA EntityManager (before update)";
+        }
+        if (annotationName.equals("PostUpdate")) {
+            return "JPA EntityManager (after update)";
+        }
+        if (annotationName.equals("PreRemove")) {
+            return "JPA EntityManager (before remove)";
+        }
+        if (annotationName.equals("PostRemove")) {
+            return "JPA EntityManager (after remove)";
+        }
+        if (annotationName.equals("PostLoad")) {
+            return "JPA EntityManager (after load)";
+        }
+        
+        // Servlet注解
+        if (annotationName.equals("WebServlet")) {
+            return "Servlet Container";
+        }
+        if (annotationName.equals("WebFilter")) {
+            return "Servlet Container (filter chain)";
+        }
+        if (annotationName.equals("WebListener")) {
+            return "Servlet Container (event)";
+        }
+        
+        return null;  // 不是框架回调注解
     }
 }
