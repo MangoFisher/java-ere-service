@@ -25,7 +25,7 @@
 - Parameter（参数）⭐⭐⭐⭐⭐
 - Return（返回值）⭐⭐⭐⭐⭐
 - ClassOrInterface（类/接口）⭐⭐⭐⭐
-- Field（字段）⭐⭐⭐⭐
+- Field（字段/属性/成员变量）⭐⭐⭐⭐
 - Exception（异常）⭐⭐⭐⭐
 
 **8种关系：**
@@ -574,7 +574,7 @@ RETURN impl
 
 ---
 
-### 4. accesses（字段访问）
+### 4. accesses（字段/属性/成员变量访问）
 
 **代码示例：**
 
@@ -878,7 +878,7 @@ RETURN caller
 ```
 
 
-## 📊 三、综合评分表
+## 📊 综合评分表
 
 ### 实体类型综合评分
 
@@ -952,11 +952,10 @@ methodDecls.parallelStream().forEach(method -> {
 
 ✅ 利用多核 CPU
 ✅ 提升 2-4倍 性能
-优化策略4：配置化开关（当前方案）
+### 优化策略4：配置化开关（当前方案）
 yaml
-# 默认关闭，需要时再开启
 relations:
-  overrides: false  # ← 让用户自己决定是否承担这个性能开销
+  overrides: false  # 默认关闭，让用户自己决定是否承担这个性能开销
 优点：
 
 ✅ 用户可以根据需求选择
