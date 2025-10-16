@@ -58,6 +58,7 @@ public class CodeParser {
             new ReflectionTypeSolver()
         );
         ParserConfiguration config = new ParserConfiguration()
+            .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17)
             .setSymbolResolver(new JavaSymbolSolver(typeSolver));
         StaticJavaParser.setConfiguration(config);
     }
@@ -93,6 +94,7 @@ public class CodeParser {
         }
         
         ParserConfiguration parserConfig = new ParserConfiguration()
+            .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17)
             .setSymbolResolver(new JavaSymbolSolver(typeSolver));
         StaticJavaParser.setConfiguration(parserConfig);
         
