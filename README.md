@@ -16,13 +16,17 @@
 
 ## 如何开始分析单个文件
 
+```bash
+mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.LocalDebugMain"
+```
+
 ## 如何开始分析整个项目
 ### 1. 根据需求修改配置文件
-
+项目的配置文件是`analysis-config.yml`
 ### 2. 生成抽取实体和关系的json文件
 
 ```bash
-mvn exec:java -Dexec.mainClass="com.java.ere.entry.ConfigFileMain" -Dexec.args="analysis-config.yml"
+mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ConfigFileMain" -Dexec.args="analysis-config.yml"
 ```
 
 命令会读取`analysis-config.yml`（如需其他配置文件可替换路径），并在`extract_out/`目录下生成带时间戳的`analysis-result_*.json`文件。
@@ -30,7 +34,7 @@ mvn exec:java -Dexec.mainClass="com.java.ere.entry.ConfigFileMain" -Dexec.args="
 ### 3. 根据生成的json文件生成cyper脚本
 
 ```bash
-mvn exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
+mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
   -Dexec.args="extract_out/analysis-result_demo_20250101_120000.json extract_out/neo4j-import.cypher"
 ```
 
