@@ -42,6 +42,8 @@ mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
 
 ### 4. 将cyper脚本导入到Neo4j数据库
   复制cyper脚本中全部内容，然后在neo4j browser中执行
+  或
+  使用`docs/neo4j-import-script.sh`脚本导入
 
 
 ### 5. 根据你想要查询的实体和关系，使用Cypher查询语言进行查询, 如查询所有实体间的关系
