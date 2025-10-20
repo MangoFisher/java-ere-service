@@ -186,7 +186,8 @@ public class CodeParser {
         for (File file : javaFiles) {
             try {
                 CompilationUnit cu = StaticJavaParser.parse(file);
-                Map<String, Entity> entities = extractEntitiesFromFile(cu);
+                String filePath = file.getAbsolutePath();
+                Map<String, Entity> entities = extractEntitiesFromFile(cu, filePath);
                 allEntities.putAll(entities);
                 allCompilationUnits.add(cu);
                 success++;
@@ -212,20 +213,20 @@ public class CodeParser {
     /**
      * 从单个文件提取实体（不构建跨文件关系）
      */
-    private Map<String, Entity> extractEntitiesFromFile(CompilationUnit cu) {
+    private Map<String, Entity> extractEntitiesFromFile(CompilationUnit cu, String filePath) {
         Map<String, Entity> entities = new HashMap<>();
         
         // 根据配置决定提取哪些实体
         if (extractionConfig.isEntityEnabled("ClassOrInterface")) {
-            extractClassesAndInterfaces(cu, entities);
+            extractClassesAndInterfaces(cu, entities, filePath);
         }
         
         if (extractionConfig.isEntityEnabled("Method")) {
-            extractMethods(cu, entities);
+            extractMethods(cu, entities, filePath);
         }
         
         if (extractionConfig.isEntityEnabled("Field")) {
-            extractFields(cu, entities);
+            extractFields(cu, entities, filePath);
         }
 
         return entities;
@@ -236,10 +237,11 @@ public class CodeParser {
      */
     public Map<String, Entity> parseFile(File javaFile) throws Exception {
         CompilationUnit cu = StaticJavaParser.parse(javaFile);
-        return extractEntitiesFromFile(cu);
+        String filePath = javaFile.getAbsolutePath();
+        return extractEntitiesFromFile(cu, filePath);
     }
 
-    private void extractClassesAndInterfaces(CompilationUnit cu, Map<String, Entity> entities) {
+    private void extractClassesAndInterfaces(CompilationUnit cu, Map<String, Entity> entities, String filePath) {
         cu.findAll(ClassOrInterfaceDeclaration.class).forEach(classDecl -> {
             String name = classDecl.getNameAsString();
             String prefix = classDecl.isInterface() ? "iface_" : "class_";
@@ -247,11 +249,12 @@ public class CodeParser {
             entity.addProperty("name", name);
             entity.addProperty("isInterface", String.valueOf(classDecl.isInterface()));
             entity.addProperty("purpose", extractJavadoc(classDecl.getJavadoc()));
+            entity.addProperty("filePath", filePath);
             entities.put(entity.getId(), entity);
         });
     }
 
-    private void extractMethods(CompilationUnit cu, Map<String, Entity> entities) {
+    private void extractMethods(CompilationUnit cu, Map<String, Entity> entities, String filePath) {
         cu.findAll(MethodDeclaration.class).forEach(methodDecl -> {
             String methodName = methodDecl.getNameAsString();
             String className = methodDecl.findAncestor(ClassOrInterfaceDeclaration.class)
@@ -271,6 +274,7 @@ public class CodeParser {
             methodEntity.addProperty("owner", className);
             methodEntity.addProperty("signature", methodName + "(" + paramSignature + ")");
             methodEntity.addProperty("is_external", "false");  // 业务代码方法
+            methodEntity.addProperty("filePath", filePath);
             
             // 根据配置决定是否提取Javadoc
             if (extractionConfig.isIncludeJavadoc()) {
@@ -351,7 +355,7 @@ public class CodeParser {
         });
     }
 
-    private void extractFields(CompilationUnit cu, Map<String, Entity> entities) {
+    private void extractFields(CompilationUnit cu, Map<String, Entity> entities, String filePath) {
         cu.findAll(FieldDeclaration.class).forEach(fieldDecl -> {
             String fieldName = fieldDecl.getVariable(0).getNameAsString();
             String className = fieldDecl.findAncestor(ClassOrInterfaceDeclaration.class)
@@ -361,6 +365,7 @@ public class CodeParser {
             Entity fieldEntity = new Entity(id, "Field");
             fieldEntity.addProperty("name", fieldName);
             fieldEntity.addProperty("type", fieldDecl.getVariable(0).getType().asString());
+            fieldEntity.addProperty("filePath", filePath);
             entities.put(id, fieldEntity);
         });
     }
