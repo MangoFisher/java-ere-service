@@ -38,6 +38,7 @@ import com.java.ere.config.ResolverConfig;
 public class CodeParser {
     private Set<String> projectPackages = new HashSet<>();
     private ExtractionConfig extractionConfig = new ExtractionConfig();
+    private String projectRoot;  // 项目根目录，用于计算相对路径
     
     /**
      * 默认构造函数
@@ -77,6 +78,7 @@ public class CodeParser {
     public void initSymbolResolver(String projectRoot, 
                                    List<String> sourcePaths,
                                    ResolverConfig config) {
+        this.projectRoot = projectRoot;  // 保存项目根目录
         CombinedTypeSolver typeSolver = new CombinedTypeSolver();
         
         // 1. JDK类
@@ -186,7 +188,8 @@ public class CodeParser {
         for (File file : javaFiles) {
             try {
                 CompilationUnit cu = StaticJavaParser.parse(file);
-                String filePath = file.getAbsolutePath();
+                // 使用相对路径（相对于项目根目录）
+                String filePath = getRelativePath(file.getAbsolutePath());
                 Map<String, Entity> entities = extractEntitiesFromFile(cu, filePath);
                 allEntities.putAll(entities);
                 allCompilationUnits.add(cu);
@@ -296,6 +299,7 @@ public class CodeParser {
                     Entity paramEntity = new Entity(paramId, "Parameter");
                     paramEntity.addProperty("name", paramName);
                     paramEntity.addProperty("type", param.getType().asString());
+                    paramEntity.addProperty("filePath", filePath);
                     entities.put(paramId, paramEntity);
                     methodEntity.addRelation("has_parameter", paramId);
                 });
@@ -310,6 +314,7 @@ public class CodeParser {
                 Entity returnEntity = new Entity(returnId, "Return");
                 returnEntity.addProperty("name", returnType);  // 添加name属性用于显示
                 returnEntity.addProperty("type", returnType);
+                returnEntity.addProperty("filePath", filePath);
                 entities.put(returnId, returnEntity);
                 methodEntity.addRelation("returns", returnId);
             }
@@ -326,6 +331,7 @@ public class CodeParser {
                         Entity exceptionEntity = new Entity(exceptionId, "Exception");
                         exceptionEntity.addProperty("name", exceptionType);  // 添加name属性用于显示
                         exceptionEntity.addProperty("type", exceptionType);
+                        exceptionEntity.addProperty("filePath", filePath);
                         entities.put(exceptionId, exceptionEntity);
                     }
                     
@@ -1030,5 +1036,31 @@ public class CodeParser {
         }
         
         return null;  // 不是框架回调注解
+    }
+    
+    /**
+     * 将绝对路径转换为相对于项目根目录的相对路径
+     */
+    private String getRelativePath(String absolutePath) {
+        if (projectRoot == null || absolutePath == null) {
+            return absolutePath;
+        }
+        
+        // 规范化路径分隔符
+        String normalizedRoot = projectRoot.replace("\\", "/");
+        String normalizedPath = absolutePath.replace("\\", "/");
+        
+        // 确保projectRoot以/结尾
+        if (!normalizedRoot.endsWith("/")) {
+            normalizedRoot += "/";
+        }
+        
+        // 如果路径以projectRoot开头，去掉这部分
+        if (normalizedPath.startsWith(normalizedRoot)) {
+            return normalizedPath.substring(normalizedRoot.length());
+        }
+        
+        // 如果不是以projectRoot开头，返回原路径（降级处理）
+        return absolutePath;
     }
 }
