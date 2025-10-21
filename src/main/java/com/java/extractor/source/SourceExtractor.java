@@ -15,13 +15,13 @@ import java.nio.file.Paths;
  * 源码提取服务
  */
 public class SourceExtractor {
-    
+
     private final String projectRoot;
-    
+
     public SourceExtractor(String projectRoot) {
         this.projectRoot = projectRoot;
     }
-    
+
     /**
      * 为实体提取源码
      */
@@ -29,14 +29,14 @@ public class SourceExtractor {
         if (entity == null || entity.getFilePath() == null) {
             return null;
         }
-        
-        String type = entity.getType();
-        if (type == null) {
+
+        String entityType = entity.getEntity_type();
+        if (entityType == null) {
             return null;
         }
-        
+
         try {
-            switch (type) {
+            switch (entityType) {
                 case "Method":
                     return extractMethodSource(entity);
                 case "ClassOrInterface":
@@ -51,7 +51,7 @@ public class SourceExtractor {
             return null;
         }
     }
-    
+
     /**
      * 提取方法源码
      */
@@ -61,37 +61,37 @@ public class SourceExtractor {
             System.err.println("文件不存在: " + entity.getFilePath());
             return null;
         }
-        
+
         CompilationUnit cu = StaticJavaParser.parse(file);
         String owner = entity.getOwner();
         String methodName = entity.getName();
-        
+
         // 查找方法
         for (MethodDeclaration method : cu.findAll(MethodDeclaration.class)) {
             // 检查方法名匹配
             if (!method.getNameAsString().equals(methodName)) {
                 continue;
             }
-            
+
             // 检查所属类匹配
             if (owner != null) {
                 String actualOwner = method.findAncestor(ClassOrInterfaceDeclaration.class)
                     .map(ClassOrInterfaceDeclaration::getNameAsString)
                     .orElse(null);
-                
+
                 if (!owner.equals(actualOwner)) {
                     continue;
                 }
             }
-            
+
             // 提取完整方法体
             return method.toString();
         }
-        
+
         System.err.println("未找到方法: " + entity.getId());
         return null;
     }
-    
+
     /**
      * 提取类源码
      */
@@ -101,11 +101,11 @@ public class SourceExtractor {
             System.err.println("文件不存在: " + entity.getFilePath());
             return null;
         }
-        
+
         // 对于类，返回整个文件内容
         return new String(Files.readAllBytes(Paths.get(entity.getFilePath())));
     }
-    
+
     /**
      * 提取字段源码
      */
@@ -115,57 +115,57 @@ public class SourceExtractor {
             System.err.println("文件不存在: " + entity.getFilePath());
             return null;
         }
-        
+
         CompilationUnit cu = StaticJavaParser.parse(file);
         String owner = entity.getOwner();
         String fieldName = entity.getName();
-        
+
         // 查找字段
         for (FieldDeclaration field : cu.findAll(FieldDeclaration.class)) {
             // 检查字段名匹配
             boolean nameMatches = field.getVariables().stream()
                 .anyMatch(v -> v.getNameAsString().equals(fieldName));
-            
+
             if (!nameMatches) {
                 continue;
             }
-            
+
             // 检查所属类匹配
             if (owner != null) {
                 String actualOwner = field.findAncestor(ClassOrInterfaceDeclaration.class)
                     .map(ClassOrInterfaceDeclaration::getNameAsString)
                     .orElse(null);
-                
+
                 if (!owner.equals(actualOwner)) {
                     continue;
                 }
             }
-            
+
             // 提取字段声明
             return field.toString();
         }
-        
+
         System.err.println("未找到字段: " + entity.getId());
         return null;
     }
-    
+
     /**
      * 提取方法所在类的上下文（类声明+字段）
      */
     public String extractClassContext(EntityInfo methodEntity) {
-        if (methodEntity == null || !methodEntity.getType().equals("Method")) {
+        if (methodEntity == null || !methodEntity.getEntity_type().equals("Method")) {
             return null;
         }
-        
+
         try {
             File file = new File(methodEntity.getFilePath());
             if (!file.exists()) {
                 return null;
             }
-            
+
             CompilationUnit cu = StaticJavaParser.parse(file);
             String owner = methodEntity.getOwner();
-            
+
             // 查找类
             for (ClassOrInterfaceDeclaration classDecl : cu.findAll(ClassOrInterfaceDeclaration.class)) {
                 if (classDecl.getNameAsString().equals(owner)) {
@@ -173,22 +173,22 @@ public class SourceExtractor {
                     StringBuilder context = new StringBuilder();
                     context.append("// 类: ").append(owner).append("\n");
                     context.append(classDecl.getNameAsString()).append(" {\n");
-                    
+
                     // 添加字段
                     for (FieldDeclaration field : classDecl.getFields()) {
                         context.append("  ").append(field.toString()).append("\n");
                     }
-                    
+
                     context.append("  // ... 其他方法省略 ...\n");
                     context.append("}\n");
-                    
+
                     return context.toString();
                 }
             }
         } catch (Exception e) {
             System.err.println("提取类上下文失败: " + e.getMessage());
         }
-        
+
         return null;
     }
 }
