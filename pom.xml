@@ -44,6 +44,12 @@
         <artifactId>snakeyaml</artifactId>
         <version>2.0</version>
     </dependency>
+    <!-- Neo4j Java Driver -->
+    <dependency>
+        <groupId>org.neo4j.driver</groupId>
+        <artifactId>neo4j-java-driver</artifactId>
+        <version>5.14.0</version>
+    </dependency>
   </dependencies>
   <!-- 打包配置：指定主类为com.java.ere.App -->
   <build>
