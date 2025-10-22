@@ -45,7 +45,59 @@ public class JavaChangeExtractor {
         // 提取枚举值变更
         changes.addAll(extractEnumChanges(hunk, className, filePath));
 
-        return changes;
+        // 提取方法体内的变更（方法声明没变，但方法体有变化）
+        changes.addAll(extractMethodBodyChanges(hunk, className, filePath, projectRoot));
+
+        // 提取类体内的变更（类声明没变，但类体有变化）
+        changes.addAll(extractClassBodyChanges(hunk, className, filePath, projectRoot));
+
+        // 去重：合并相同实体的变更
+        return deduplicateChanges(changes);
+    }
+
+    /**
+     * 去重：合并相同实体的变更
+     */
+    private List<ChangeInfo> deduplicateChanges(List<ChangeInfo> changes) {
+        Map<String, ChangeInfo> uniqueChanges = new java.util.LinkedHashMap<>();
+
+        for (ChangeInfo change : changes) {
+            String entityId = change.toEntityId();
+            if (entityId == null) {
+                continue;
+            }
+
+            if (uniqueChanges.containsKey(entityId)) {
+                // 合并代码段
+                ChangeInfo existing = uniqueChanges.get(entityId);
+                mergeCodeLines(existing, change);
+            } else {
+                uniqueChanges.put(entityId, change);
+            }
+        }
+
+        return new ArrayList<>(uniqueChanges.values());
+    }
+
+    /**
+     * 合并代码段
+     */
+    private void mergeCodeLines(ChangeInfo existing, ChangeInfo newChange) {
+        // 合并 addedLines
+        if (newChange.getAddedLines() != null && !newChange.getAddedLines().isEmpty()) {
+            if (existing.getAddedLines() == null) {
+                existing.setAddedLines(new ArrayList<>());
+            }
+            existing.getAddedLines().addAll(newChange.getAddedLines());
+        }
+
+        // 合并 removedLines
+        if (newChange.getRemovedLines() != null && !newChange.getRemovedLines().isEmpty()) {
+            if (existing.getRemovedLines() == null) {
+                existing.setRemovedLines(new ArrayList<>());
+            }
+            existing.getRemovedLines().addAll(newChange.getRemovedLines());
+        }
     }
 
     /**
@@ -307,6 +359,197 @@ public class JavaChangeExtractor {
         // public enum EnumName
         // class ClassName implements/extends
         return line.matches(".*\\b(class|interface|enum)\\s+\\w+.*\\{?");
+    }
+
+    /**
+     * 提取方法体内的变更（方法声明没变，但方法体有变化）
+     */
+    private List<ChangeInfo> extractMethodBodyChanges(DiffHunk hunk, String className, String filePath, String projectRoot) {
+        List<ChangeInfo> changes = new ArrayList<>();
+
+        // 如果没有新增或删除的行，跳过
+        if (hunk.getAddedLines().isEmpty() && hunk.getRemovedLines().isEmpty()) {
+            return changes;
+        }
+
+        // 如果方法声明出现在 +/- 行中，说明已经被 extractMethodChanges 处理了
+        if (hasMethodDeclarationInChanges(hunk)) {
+            return changes;
+        }
+
+        try {
+            // 构建完整的源文件路径
+            java.io.File sourceFile = new java.io.File(projectRoot, filePath);
+            if (!sourceFile.exists()) {
+                return changes;
+            }
+
+            // 使用 JavaParser 解析源文件
+            com.github.javaparser.ast.CompilationUnit cu = com.github.javaparser.StaticJavaParser.parse(sourceFile);
+            int changeStartLine = hunk.getStartLine();
+
+            // 查找包含变更的方法
+            for (com.github.javaparser.ast.body.MethodDeclaration method : cu.findAll(com.github.javaparser.ast.body.MethodDeclaration.class)) {
+                if (!method.getRange().isPresent()) {
+                    continue;
+                }
+
+                com.github.javaparser.Range range = method.getRange().get();
+                int methodStartLine = range.begin.line;
+                int methodEndLine = range.end.line;
+
+                // 检查变更是否在此方法范围内
+                if (changeStartLine >= methodStartLine && changeStartLine <= methodEndLine) {
+                    // 检查方法是否在正确的类中
+                    String methodClassName = method.findAncestor(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class)
+                        .map(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration::getNameAsString)
+                        .orElse(null);
+
+                    if (!className.equals(methodClassName)) {
+                        continue;
+                    }
+
+                    // 创建变更记录
+                    ChangeInfo change = new ChangeInfo();
+                    change.setEntity_type("Method");
+                    change.setClassName(className);
+                    change.setMethodName(method.getNameAsString());
+                    change.setMethodSignature(extractMethodSignatureFromDeclaration(method));
+                    change.setChangeType("MODIFY");
+                    change.setFilePath(filePath);
+                    change.setAddedLines(new ArrayList<>(hunk.getAddedLines()));
+                    change.setRemovedLines(new ArrayList<>(hunk.getRemovedLines()));
+
+                    changes.add(change);
+
+                    System.out.println("    [MODIFY] 方法体: " + method.getNameAsString() + "(" + change.getMethodSignature() + ")");
+                    System.out.println("          实体ID: " + change.toEntityId());
+
+                    break; // 找到方法后退出循环
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("解析方法体变更失败: " + filePath + " - " + e.getMessage());
+        }
+
+        return changes;
+    }
+
+    /**
+     * 检查变更行中是否包含方法声明
+     */
+    private boolean hasMethodDeclarationInChanges(DiffHunk hunk) {
+        for (String line : hunk.getAddedLines()) {
+            if (JavaMethodParser.isMethodDeclaration(line)) {
+                return true;
+            }
+        }
+        for (String line : hunk.getRemovedLines()) {
+            if (JavaMethodParser.isMethodDeclaration(line)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 从 MethodDeclaration 提取方法签名
+     */
+    private String extractMethodSignatureFromDeclaration(com.github.javaparser.ast.body.MethodDeclaration method) {
+        return method.getParameters().stream()
+            .map(p -> p.getType().asString())
+            .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    /**
+     * 提取类体内的变更（类声明没变，但类体有变化）
+     */
+    private List<ChangeInfo> extractClassBodyChanges(DiffHunk hunk, String className, String filePath, String projectRoot) {
+        List<ChangeInfo> changes = new ArrayList<>();
+
+        // 如果没有新增或删除的行，跳过
+        if (hunk.getAddedLines().isEmpty() && hunk.getRemovedLines().isEmpty()) {
+            return changes;
+        }
+
+        // 如果类声明出现在 +/- 行中，说明已经被 extractClassChanges 处理了
+        if (hasClassDeclarationInChanges(hunk)) {
+            return changes;
+        }
+
+        try {
+            // 构建完整的源文件路径
+            java.io.File sourceFile = new java.io.File(projectRoot, filePath);
+            if (!sourceFile.exists()) {
+                return changes;
+            }
+
+            // 使用 JavaParser 解析源文件
+            com.github.javaparser.ast.CompilationUnit cu = com.github.javaparser.StaticJavaParser.parse(sourceFile);
+            int changeStartLine = hunk.getStartLine();
+
+            // 查找包含变更的类
+            for (com.github.javaparser.ast.body.ClassOrInterfaceDeclaration classDecl : cu.findAll(com.github.javaparser.ast.body.ClassOrInterfaceDeclaration.class)) {
+                if (!classDecl.getRange().isPresent()) {
+                    continue;
+                }
+
+                com.github.javaparser.Range range = classDecl.getRange().get();
+                int classStartLine = range.begin.line;
+                int classEndLine = range.end.line;
+
+                // 检查变更是否在此类范围内
+                if (changeStartLine >= classStartLine && changeStartLine <= classEndLine) {
+                    String actualClassName = classDecl.getNameAsString();
+
+                    // 检查类名是否匹配
+                    if (!className.equals(actualClassName)) {
+                        continue;
+                    }
+
+                    // 创建变更记录
+                    ChangeInfo change = new ChangeInfo();
+                    change.setEntity_type("ClassOrInterface");
+                    change.setClassName(className);
+                    change.setChangeType("MODIFY");
+                    change.setFilePath(filePath);
+                    change.setAddedLines(new ArrayList<>(hunk.getAddedLines()));
+                    change.setRemovedLines(new ArrayList<>(hunk.getRemovedLines()));
+
+                    changes.add(change);
+
+                    System.out.println("    [MODIFY] 类体: " + className);
+                    System.out.println("          实体ID: " + change.toEntityId());
+
+                    break; // 找到类后退出循环
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("解析类体变更失败: " + filePath + " - " + e.getMessage());
+        }
+
+        return changes;
+    }
+
+    /**
+     * 检查变更行中是否包含类声明
+     */
+    private boolean hasClassDeclarationInChanges(DiffHunk hunk) {
+        for (String line : hunk.getAddedLines()) {
+            String trimmed = line.trim();
+            if (isClassDeclaration(trimmed)) {
+                return true;
+            }
+        }
+        for (String line : hunk.getRemovedLines()) {
+            String trimmed = line.trim();
+            if (isClassDeclaration(trimmed)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

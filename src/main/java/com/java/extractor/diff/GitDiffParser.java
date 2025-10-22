@@ -11,28 +11,29 @@ import java.util.List;
  * 解析git diff格式的文本文件
  */
 public class GitDiffParser {
-    
+
     /**
      * 解析git diff文件
-     * 
+     *
      * @param diffFilePath diff文件路径
      * @return Diff块列表
      */
     public List<DiffHunk> parse(String diffFilePath) throws IOException {
         List<DiffHunk> hunks = new ArrayList<>();
-        
+
         try (BufferedReader reader = new BufferedReader(new FileReader(diffFilePath))) {
             String line;
             DiffHunk currentHunk = null;
             String currentFilePath = null;
-            
+
             while ((line = reader.readLine()) != null) {
                 // diff --git a/path/to/file b/path/to/file
                 if (line.startsWith("diff --git")) {
                     // 开始新文件的diff
-                    if (currentHunk != null && 
-                        (!currentHunk.getAddedLines().isEmpty() || 
-                         !currentHunk.getRemovedLines().isEmpty())) {
+                    if (currentHunk != null &&
+                        (!currentHunk.getAddedLines().isEmpty() ||
+                         !currentHunk.getRemovedLines().isEmpty() ||
+                         !currentHunk.getContextLines().isEmpty())) {
                         hunks.add(currentHunk);
                     }
                     currentHunk = null;
@@ -41,7 +42,7 @@ public class GitDiffParser {
                 else if (line.startsWith("+++")) {
                     // 提取文件路径
                     currentFilePath = extractFilePath(line);
-                    
+
                     // 只处理Java文件
                     if (currentFilePath != null && currentFilePath.endsWith(".java")) {
                         currentHunk = new DiffHunk(currentFilePath);
@@ -52,18 +53,25 @@ public class GitDiffParser {
                     // 新的变更块（hunk header）
                     if (currentHunk != null) {
                         // 如果当前hunk已有内容，保存它
-                        if (!currentHunk.getAddedLines().isEmpty() || 
-                            !currentHunk.getRemovedLines().isEmpty()) {
+                        if (!currentHunk.getAddedLines().isEmpty() ||
+                            !currentHunk.getRemovedLines().isEmpty() ||
+                            !currentHunk.getContextLines().isEmpty()) {
                             hunks.add(currentHunk);
                             // 创建新hunk但保持相同的文件
                             currentHunk = new DiffHunk(currentFilePath);
                         }
+                        // 解析行号信息
+                        parseHunkHeader(line, currentHunk);
+                    } else if (currentFilePath != null && currentFilePath.endsWith(".java")) {
+                        // 如果还没有创建hunk，现在创建
+                        currentHunk = new DiffHunk(currentFilePath);
+                        parseHunkHeader(line, currentHunk);
                     }
                 }
                 // + added line
                 else if (line.startsWith("+") && !line.startsWith("+++")) {
                     if (currentHunk != null) {
-                        // 移除开头的+号和空格
+                        // 移除开头的+号
                         String content = line.substring(1);
                         currentHunk.addAddedLine(content);
                     }
@@ -71,27 +79,30 @@ public class GitDiffParser {
                 // - removed line
                 else if (line.startsWith("-") && !line.startsWith("---")) {
                     if (currentHunk != null) {
-                        // 移除开头的-号和空格
+                        // 移除开头的-号
                         String content = line.substring(1);
                         currentHunk.addRemovedLine(content);
                     }
                 }
                 // context line (starts with space)
-                else {
-                    // 上下文行，暂时忽略
+                else if (line.startsWith(" ") && currentHunk != null) {
+                    // 上下文行，移除开头的空格
+                    String content = line.substring(1);
+                    currentHunk.addContextLine(content);
                 }
             }
-            
+
             // 添加最后一个hunk
-            if (currentHunk != null && (!currentHunk.getAddedLines().isEmpty() || 
-                !currentHunk.getRemovedLines().isEmpty())) {
+            if (currentHunk != null && (!currentHunk.getAddedLines().isEmpty() ||
+                !currentHunk.getRemovedLines().isEmpty() ||
+                !currentHunk.getContextLines().isEmpty())) {
                 hunks.add(currentHunk);
             }
         }
-        
+
         return hunks;
     }
-    
+
     /**
      * 从diff行中提取文件路径
      * 例如: "+++ b/src/main/java/Example.java" -> "src/main/java/Example.java"
@@ -101,14 +112,39 @@ public class GitDiffParser {
         if (line.contains("/dev/null")) {
             return null;  // 文件被删除
         }
-        
+
         // 提取 b/ 之后的路径
         int bIndex = line.indexOf("b/");
         if (bIndex >= 0) {
             return line.substring(bIndex + 2).trim();
         }
-        
+
         // 降级：去掉+++ 和空格
         return line.replaceFirst("^\\+\\+\\+\\s+", "").trim();
+    }
+
+    /**
+     * 解析hunk header获取行号信息
+     * 例如: "@@ -335,6 +347,9 @@ public abstract class BaseConfigureWrapper {"
+     * 格式: @@ -start_line,line_count +start_line,line_count @@ context
+     */
+    private void parseHunkHeader(String line, DiffHunk hunk) {
+        // 正则匹配: @@ -335,6 +347,9 @@
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
+            "@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@(.*)");
+        java.util.regex.Matcher matcher = pattern.matcher(line);
+
+        if (matcher.find()) {
+            int oldStart = Integer.parseInt(matcher.group(1));
+            int newStart = Integer.parseInt(matcher.group(3));
+            String context = matcher.group(5);
+
+            hunk.setStartLine(newStart);
+
+            // 如果有上下文信息（通常是方法或类名），保存它
+            if (context != null && !context.trim().isEmpty()) {
+                hunk.setHunkContext(context.trim());
+            }
+        }
     }
 }
