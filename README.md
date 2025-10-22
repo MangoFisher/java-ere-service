@@ -15,6 +15,9 @@
 ### 目前支持的实体&关系类型
 见 [entity_relationship_analyze.md](docs/entity_relationship_analyze.md)
 
+### 实体&类型的数据结构说明
+见 [entity_relationship_data_structure_example.json](docs/entity_relationship_data_structure_example.json)
+
 ### 如何开始分析单个文件
 
 ```bash
