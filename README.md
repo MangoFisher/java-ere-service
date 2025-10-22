@@ -2,7 +2,7 @@
 
 一个使用 JavaParser 分析 Java 项目源码，进行 ERE (Entity-Relationship-Extraction) 关系提取和从git diff的原始输出中提取出实体变更信息&从neo4j查询调用链上下游并进行格式化输出的项目，是构建基于 Java 源码的知识图谱的原始数据（实体、关系）来源。
 
-## com.java.ere
+## 一、com.java.ere
 ### 功能特性
 
 - ✅ **单文件分析**：支持分析单个 Java 源文件
@@ -53,7 +53,7 @@ mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
 #### 5. 根据你想要查询的实体和关系，使用Cypher查询语言进行查询, 如查询所有实体间的关系
 ![alt text](image.png)
 
-## com.java.extractor
+## 二、com.java.extractor
 ### 功能特性
 
 - ✅ **从git diff的原始输出中提取出实体变更信息**
