@@ -110,11 +110,11 @@ mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
 mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
   -Dexec.args="parse-diff \
     --diff git_diff_original.txt \
-    --project /path/to/your/project \
+    --project /Users/zhangxiaoguo/Downloads/java-callgraph2 \
     --output generated_input.json \
     --neo4j-uri bolt://localhost:7687 \
     --neo4j-user neo4j \
-    --neo4j-password your_password"
+    --neo4j-password test654321"
 
 '''
 

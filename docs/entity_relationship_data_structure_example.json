@@ -1,0 +1,638 @@
+{
+  "metadata": {
+    "description": "6种实体和8种关系的数据结构示例",
+    "version": "1.0",
+    "date": "2024-10-22",
+    "purpose": "展示Neo4j知识图谱中实体和关系的完整数据结构"
+  },
+  "entities": {
+    "ClassOrInterface": [
+      {
+        "id": "class_UserService",
+        "type": "ClassOrInterface",
+        "name": "UserService",
+        "fullName": "com.example.service.UserService",
+        "packageName": "com.example.service",
+        "isInterface": false,
+        "isAbstract": false,
+        "isEnum": false,
+        "modifiers": ["public"],
+        "filePath": "src/main/java/com/example/service/UserService.java",
+        "superClass": "BaseService",
+        "interfaces": ["IUserService"],
+        "annotations": ["@Service", "@Transactional"],
+        "description": "用户服务类"
+      },
+      {
+        "id": "interface_IUserService",
+        "type": "ClassOrInterface",
+        "name": "IUserService",
+        "fullName": "com.example.service.IUserService",
+        "packageName": "com.example.service",
+        "isInterface": true,
+        "isAbstract": false,
+        "isEnum": false,
+        "modifiers": ["public"],
+        "filePath": "src/main/java/com/example/service/IUserService.java",
+        "description": "用户服务接口"
+      },
+      {
+        "id": "class_BaseService",
+        "type": "ClassOrInterface",
+        "name": "BaseService",
+        "fullName": "com.example.service.BaseService",
+        "packageName": "com.example.service",
+        "isInterface": false,
+        "isAbstract": true,
+        "isEnum": false,
+        "modifiers": ["public", "abstract"],
+        "filePath": "src/main/java/com/example/service/BaseService.java",
+        "description": "基础服务抽象类"
+      },
+      {
+        "id": "class_User",
+        "type": "ClassOrInterface",
+        "name": "User",
+        "fullName": "com.example.model.User",
+        "packageName": "com.example.model",
+        "isInterface": false,
+        "isAbstract": false,
+        "isEnum": false,
+        "modifiers": ["public"],
+        "filePath": "src/main/java/com/example/model/User.java",
+        "annotations": ["@Entity", "@Table(name=\"users\")"],
+        "description": "用户实体类"
+      }
+    ],
+    "Method": [
+      {
+        "id": "method_UserService_getUserById",
+        "type": "Method",
+        "name": "getUserById",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "signature": "Long",
+        "fullSignature": "getUserById(Long id)",
+        "returnType": "User",
+        "modifiers": ["public"],
+        "isConstructor": false,
+        "isStatic": false,
+        "annotations": ["@Override", "@Cacheable"],
+        "lineStart": 45,
+        "lineEnd": 52,
+        "sourceCode": "public User getUserById(Long id) {\n    if (id == null) {\n        throw new IllegalArgumentException(\"id cannot be null\");\n    }\n    User user = userRepository.findById(id);\n    logger.info(\"Found user: {}\", user);\n    return user;\n}",
+        "description": "根据ID获取用户"
+      },
+      {
+        "id": "method_UserService_createUser",
+        "type": "Method",
+        "name": "createUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "signature": "User",
+        "fullSignature": "createUser(User user)",
+        "returnType": "User",
+        "modifiers": ["public"],
+        "isConstructor": false,
+        "isStatic": false,
+        "annotations": ["@Transactional"],
+        "lineStart": 54,
+        "lineEnd": 62,
+        "sourceCode": "public User createUser(User user) throws ValidationException {\n    if (user == null) {\n        throw new ValidationException(\"user cannot be null\");\n    }\n    validateUser(user);\n    User saved = userRepository.save(user);\n    notificationService.sendWelcomeEmail(saved.getEmail());\n    return saved;\n}",
+        "description": "创建新用户"
+      },
+      {
+        "id": "method_UserService_validateUser",
+        "type": "Method",
+        "name": "validateUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "signature": "User",
+        "fullSignature": "validateUser(User user)",
+        "returnType": "void",
+        "modifiers": ["private"],
+        "isConstructor": false,
+        "isStatic": false,
+        "lineStart": 64,
+        "lineEnd": 70,
+        "sourceCode": "private void validateUser(User user) throws ValidationException {\n    if (user.getName() == null || user.getName().isEmpty()) {\n        throw new ValidationException(\"name is required\");\n    }\n    if (user.getEmail() == null) {\n        throw new ValidationException(\"email is required\");\n    }\n}",
+        "description": "验证用户信息"
+      }
+    ],
+    "Field": [
+      {
+        "id": "field_UserService_userRepository",
+        "type": "Field",
+        "name": "userRepository",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "fieldType": "UserRepository",
+        "modifiers": ["private", "final"],
+        "isStatic": false,
+        "isConstant": false,
+        "annotations": ["@Autowired"],
+        "defaultValue": null,
+        "lineNumber": 20,
+        "description": "用户仓储依赖"
+      },
+      {
+        "id": "field_UserService_notificationService",
+        "type": "Field",
+        "name": "notificationService",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "fieldType": "NotificationService",
+        "modifiers": ["private", "final"],
+        "isStatic": false,
+        "isConstant": false,
+        "annotations": ["@Autowired"],
+        "defaultValue": null,
+        "lineNumber": 23,
+        "description": "通知服务依赖"
+      },
+      {
+        "id": "field_UserService_logger",
+        "type": "Field",
+        "name": "logger",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "fieldType": "Logger",
+        "modifiers": ["private", "static", "final"],
+        "isStatic": true,
+        "isConstant": true,
+        "defaultValue": "LoggerFactory.getLogger(UserService.class)",
+        "lineNumber": 18,
+        "description": "日志对象"
+      },
+      {
+        "id": "field_User_id",
+        "type": "Field",
+        "name": "id",
+        "className": "User",
+        "fullClassName": "com.example.model.User",
+        "fieldType": "Long",
+        "modifiers": ["private"],
+        "isStatic": false,
+        "isConstant": false,
+        "annotations": ["@Id", "@GeneratedValue"],
+        "defaultValue": null,
+        "lineNumber": 15,
+        "description": "用户ID"
+      },
+      {
+        "id": "field_User_name",
+        "type": "Field",
+        "name": "name",
+        "className": "User",
+        "fullClassName": "com.example.model.User",
+        "fieldType": "String",
+        "modifiers": ["private"],
+        "isStatic": false,
+        "isConstant": false,
+        "annotations": ["@Column(nullable=false)"],
+        "defaultValue": null,
+        "lineNumber": 18,
+        "description": "用户名"
+      },
+      {
+        "id": "field_User_email",
+        "type": "Field",
+        "name": "email",
+        "className": "User",
+        "fullClassName": "com.example.model.User",
+        "fieldType": "String",
+        "modifiers": ["private"],
+        "isStatic": false,
+        "isConstant": false,
+        "annotations": ["@Column(unique=true)"],
+        "defaultValue": null,
+        "lineNumber": 21,
+        "description": "用户邮箱"
+      }
+    ],
+    "Parameter": [
+      {
+        "id": "param_getUserById_id",
+        "type": "Parameter",
+        "name": "id",
+        "methodName": "getUserById",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "paramType": "Long",
+        "position": 0,
+        "annotations": ["@NotNull"],
+        "description": "用户ID参数"
+      },
+      {
+        "id": "param_createUser_user",
+        "type": "Parameter",
+        "name": "user",
+        "methodName": "createUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "paramType": "User",
+        "position": 0,
+        "annotations": ["@Valid"],
+        "description": "用户对象参数"
+      },
+      {
+        "id": "param_validateUser_user",
+        "type": "Parameter",
+        "name": "user",
+        "methodName": "validateUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "paramType": "User",
+        "position": 0,
+        "annotations": [],
+        "description": "待验证的用户对象"
+      }
+    ],
+    "Return": [
+      {
+        "id": "return_getUserById",
+        "type": "Return",
+        "methodName": "getUserById",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "returnType": "User",
+        "isVoid": false,
+        "isPrimitive": false,
+        "isCollection": false,
+        "isArray": false,
+        "description": "返回用户对象"
+      },
+      {
+        "id": "return_createUser",
+        "type": "Return",
+        "methodName": "createUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "returnType": "User",
+        "isVoid": false,
+        "isPrimitive": false,
+        "isCollection": false,
+        "isArray": false,
+        "description": "返回创建的用户对象"
+      },
+      {
+        "id": "return_validateUser",
+        "type": "Return",
+        "methodName": "validateUser",
+        "className": "UserService",
+        "fullClassName": "com.example.service.UserService",
+        "returnType": "void",
+        "isVoid": true,
+        "isPrimitive": true,
+        "isCollection": false,
+        "isArray": false,
+        "description": "无返回值"
+      }
+    ],
+    "Exception": [
+      {
+        "id": "exception_IllegalArgumentException",
+        "type": "Exception",
+        "name": "IllegalArgumentException",
+        "fullName": "java.lang.IllegalArgumentException",
+        "packageName": "java.lang",
+        "isChecked": false,
+        "description": "非法参数异常"
+      },
+      {
+        "id": "exception_ValidationException",
+        "type": "Exception",
+        "name": "ValidationException",
+        "fullName": "com.example.exception.ValidationException",
+        "packageName": "com.example.exception",
+        "isChecked": true,
+        "description": "验证异常"
+      }
+    ]
+  },
+  "relationships": {
+    "CONTAINS": [
+      {
+        "id": "contains_UserService_getUserById",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "method_UserService_getUserById",
+        "fromType": "ClassOrInterface",
+        "toType": "Method",
+        "description": "UserService类包含getUserById方法"
+      },
+      {
+        "id": "contains_UserService_createUser",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "method_UserService_createUser",
+        "fromType": "ClassOrInterface",
+        "toType": "Method",
+        "description": "UserService类包含createUser方法"
+      },
+      {
+        "id": "contains_UserService_validateUser",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "method_UserService_validateUser",
+        "fromType": "ClassOrInterface",
+        "toType": "Method",
+        "description": "UserService类包含validateUser方法"
+      },
+      {
+        "id": "contains_UserService_userRepository",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "field_UserService_userRepository",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "UserService类包含userRepository字段"
+      },
+      {
+        "id": "contains_UserService_notificationService",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "field_UserService_notificationService",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "UserService类包含notificationService字段"
+      },
+      {
+        "id": "contains_UserService_logger",
+        "type": "CONTAINS",
+        "from": "class_UserService",
+        "to": "field_UserService_logger",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "UserService类包含logger字段"
+      },
+      {
+        "id": "contains_User_id",
+        "type": "CONTAINS",
+        "from": "class_User",
+        "to": "field_User_id",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "User类包含id字段"
+      },
+      {
+        "id": "contains_User_name",
+        "type": "CONTAINS",
+        "from": "class_User",
+        "to": "field_User_name",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "User类包含name字段"
+      },
+      {
+        "id": "contains_User_email",
+        "type": "CONTAINS",
+        "from": "class_User",
+        "to": "field_User_email",
+        "fromType": "ClassOrInterface",
+        "toType": "Field",
+        "description": "User类包含email字段"
+      }
+    ],
+    "CALLS": [
+      {
+        "id": "calls_getUserById_findById",
+        "type": "CALLS",
+        "from": "method_UserService_getUserById",
+        "to": "method_UserRepository_findById",
+        "fromType": "Method",
+        "toType": "Method",
+        "lineNumber": 49,
+        "description": "getUserById方法调用userRepository.findById方法"
+      },
+      {
+        "id": "calls_getUserById_info",
+        "type": "CALLS",
+        "from": "method_UserService_getUserById",
+        "to": "method_Logger_info",
+        "fromType": "Method",
+        "toType": "Method",
+        "lineNumber": 50,
+        "description": "getUserById方法调用logger.info方法"
+      },
+      {
+        "id": "calls_createUser_validateUser",
+        "type": "CALLS",
+        "from": "method_UserService_createUser",
+        "to": "method_UserService_validateUser",
+        "fromType": "Method",
+        "toType": "Method",
+        "lineNumber": 58,
+        "description": "createUser方法调用validateUser方法"
+      },
+      {
+        "id": "calls_createUser_save",
+        "type": "CALLS",
+        "from": "method_UserService_createUser",
+        "to": "method_UserRepository_save",
+        "fromType": "Method",
+        "toType": "Method",
+        "lineNumber": 59,
+        "description": "createUser方法调用userRepository.save方法"
+      },
+      {
+        "id": "calls_createUser_sendWelcomeEmail",
+        "type": "CALLS",
+        "from": "method_UserService_createUser",
+        "to": "method_NotificationService_sendWelcomeEmail",
+        "fromType": "Method",
+        "toType": "Method",
+        "lineNumber": 60,
+        "description": "createUser方法调用notificationService.sendWelcomeEmail方法"
+      }
+    ],
+    "USES": [
+      {
+        "id": "uses_getUserById_userRepository",
+        "type": "USES",
+        "from": "method_UserService_getUserById",
+        "to": "field_UserService_userRepository",
+        "fromType": "Method",
+        "toType": "Field",
+        "lineNumber": 49,
+        "description": "getUserById方法使用userRepository字段"
+      },
+      {
+        "id": "uses_getUserById_logger",
+        "type": "USES",
+        "from": "method_UserService_getUserById",
+        "to": "field_UserService_logger",
+        "fromType": "Method",
+        "toType": "Field",
+        "lineNumber": 50,
+        "description": "getUserById方法使用logger字段"
+      },
+      {
+        "id": "uses_createUser_userRepository",
+        "type": "USES",
+        "from": "method_UserService_createUser",
+        "to": "field_UserService_userRepository",
+        "fromType": "Method",
+        "toType": "Field",
+        "lineNumber": 59,
+        "description": "createUser方法使用userRepository字段"
+      },
+      {
+        "id": "uses_createUser_notificationService",
+        "type": "USES",
+        "from": "method_UserService_createUser",
+        "to": "field_UserService_notificationService",
+        "fromType": "Method",
+        "toType": "Field",
+        "lineNumber": 60,
+        "description": "createUser方法使用notificationService字段"
+      }
+    ],
+    "INHERITS": [
+      {
+        "id": "inherits_UserService_BaseService",
+        "type": "INHERITS",
+        "from": "class_UserService",
+        "to": "class_BaseService",
+        "fromType": "ClassOrInterface",
+        "toType": "ClassOrInterface",
+        "description": "UserService继承BaseService"
+      }
+    ],
+    "IMPLEMENTS": [
+      {
+        "id": "implements_UserService_IUserService",
+        "type": "IMPLEMENTS",
+        "from": "class_UserService",
+        "to": "interface_IUserService",
+        "fromType": "ClassOrInterface",
+        "toType": "ClassOrInterface",
+        "description": "UserService实现IUserService接口"
+      }
+    ],
+    "HAS_PARAMETER": [
+      {
+        "id": "hasParam_getUserById_id",
+        "type": "HAS_PARAMETER",
+        "from": "method_UserService_getUserById",
+        "to": "param_getUserById_id",
+        "fromType": "Method",
+        "toType": "Parameter",
+        "position": 0,
+        "description": "getUserById方法有参数id"
+      },
+      {
+        "id": "hasParam_createUser_user",
+        "type": "HAS_PARAMETER",
+        "from": "method_UserService_createUser",
+        "to": "param_createUser_user",
+        "fromType": "Method",
+        "toType": "Parameter",
+        "position": 0,
+        "description": "createUser方法有参数user"
+      },
+      {
+        "id": "hasParam_validateUser_user",
+        "type": "HAS_PARAMETER",
+        "from": "method_UserService_validateUser",
+        "to": "param_validateUser_user",
+        "fromType": "Method",
+        "toType": "Parameter",
+        "position": 0,
+        "description": "validateUser方法有参数user"
+      }
+    ],
+    "HAS_RETURN": [
+      {
+        "id": "hasReturn_getUserById",
+        "type": "HAS_RETURN",
+        "from": "method_UserService_getUserById",
+        "to": "return_getUserById",
+        "fromType": "Method",
+        "toType": "Return",
+        "description": "getUserById方法有返回值User"
+      },
+      {
+        "id": "hasReturn_createUser",
+        "type": "HAS_RETURN",
+        "from": "method_UserService_createUser",
+        "to": "return_createUser",
+        "fromType": "Method",
+        "toType": "Return",
+        "description": "createUser方法有返回值User"
+      },
+      {
+        "id": "hasReturn_validateUser",
+        "type": "HAS_RETURN",
+        "from": "method_UserService_validateUser",
+        "to": "return_validateUser",
+        "fromType": "Method",
+        "toType": "Return",
+        "description": "validateUser方法返回void"
+      }
+    ],
+    "THROWS": [
+      {
+        "id": "throws_getUserById_IllegalArgumentException",
+        "type": "THROWS",
+        "from": "method_UserService_getUserById",
+        "to": "exception_IllegalArgumentException",
+        "fromType": "Method",
+        "toType": "Exception",
+        "lineNumber": 47,
+        "description": "getUserById方法抛出IllegalArgumentException"
+      },
+      {
+        "id": "throws_createUser_ValidationException",
+        "type": "THROWS",
+        "from": "method_UserService_createUser",
+        "to": "exception_ValidationException",
+        "fromType": "Method",
+        "toType": "Exception",
+        "lineNumber": 54,
+        "description": "createUser方法抛出ValidationException"
+      },
+      {
+        "id": "throws_validateUser_ValidationException",
+        "type": "THROWS",
+        "from": "method_UserService_validateUser",
+        "to": "exception_ValidationException",
+        "fromType": "Method",
+        "toType": "Exception",
+        "lineNumber": 64,
+        "description": "validateUser方法抛出ValidationException"
+      }
+    ]
+  },
+  "summary": {
+    "entityCounts": {
+      "ClassOrInterface": 4,
+      "Method": 3,
+      "Field": 6,
+      "Parameter": 3,
+      "Return": 3,
+      "Exception": 2,
+      "total": 21
+    },
+    "relationshipCounts": {
+      "CONTAINS": 9,
+      "CALLS": 5,
+      "USES": 4,
+      "INHERITS": 1,
+      "IMPLEMENTS": 1,
+      "HAS_PARAMETER": 3,
+      "HAS_RETURN": 3,
+      "THROWS": 3,
+      "total": 29
+    },
+    "notes": [
+      "本示例展示了一个完整的用户服务类的数据结构",
+      "包含了所有6种实体类型的示例数据",
+      "包含了所有8种关系类型的示例数据",
+      "实体ID遵循统一的命名规范：{type}_{class}_{name}",
+      "关系ID遵循统一的命名规范：{type}_{from}_{to}",
+      "所有字段都包含了详细的描述信息",
+      "可以直接用于Neo4j导入或作为API响应格式"
+    ]
+  }
+}
