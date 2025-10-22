@@ -33,6 +33,22 @@ public class JavaChangeExtractor {
         String className = hunk.getClassName();
         String filePath = normalizeFilePath(hunk.getFilePath(), projectRoot);
 
+        // 检测文件删除：如果是 +++ /dev/null，说明整个文件被删除
+        if (hunk.isFileDeleted()) {
+            ChangeInfo change = new ChangeInfo();
+            change.setEntity_type("ClassOrInterface");
+            change.setClassName(className);
+            change.setChangeType("DELETE");
+            change.setFilePath(filePath);
+            change.setRemovedLines(hunk.getRemovedLines());
+            changes.add(change);
+
+            System.out.println("    [DELETE] 文件删除 - 类/接口: " + className);
+            System.out.println("          实体ID: " + change.toEntityId());
+
+            return changes;  // 文件删除时，直接返回，不需要继续分析
+        }
+
         // 提取类/接口变更
         changes.addAll(extractClassChanges(hunk, className, filePath));
 

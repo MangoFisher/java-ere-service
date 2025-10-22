@@ -16,11 +16,13 @@ public class DiffHunk {
     private int startLine;             // 开始行号
     private int lineCount;             // 行数
     private String hunkContext;        // hunk header中的上下文信息（如方法名、类名）
+    private boolean isFileDeleted;     // 标记文件是否被删除
 
     public DiffHunk() {
         this.addedLines = new ArrayList<>();
         this.removedLines = new ArrayList<>();
         this.contextLines = new ArrayList<>();
+        this.isFileDeleted = false;
     }
 
     public DiffHunk(String filePath) {
@@ -129,6 +131,14 @@ public class DiffHunk {
         this.hunkContext = hunkContext;
     }
 
+    public boolean isFileDeleted() {
+        return isFileDeleted;
+    }
+
+    public void setFileDeleted(boolean fileDeleted) {
+        isFileDeleted = fileDeleted;
+    }
+
     @Override
     public String toString() {
         return "DiffHunk{" +
@@ -138,6 +148,7 @@ public class DiffHunk {
                 ", removed=" + removedLines.size() +
                 ", context=" + contextLines.size() +
                 ", startLine=" + startLine +
+                ", isFileDeleted=" + isFileDeleted +
                 '}';
     }
 }

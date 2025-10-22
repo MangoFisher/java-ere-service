@@ -25,6 +25,8 @@ public class GitDiffParser {
             String line;
             DiffHunk currentHunk = null;
             String currentFilePath = null;
+            String oldFilePath = null;  // 用于跟踪旧文件路径（--- 行）
+            boolean isFileDeleted = false;  // 标记文件是否被删除
 
             while ((line = reader.readLine()) != null) {
                 // diff --git a/path/to/file b/path/to/file
@@ -37,15 +39,35 @@ public class GitDiffParser {
                         hunks.add(currentHunk);
                     }
                     currentHunk = null;
+                    oldFilePath = null;
+                    isFileDeleted = false;
+                }
+                // --- a/path/to/file
+                else if (line.startsWith("---")) {
+                    // 提取旧文件路径
+                    oldFilePath = extractOldFilePath(line);
                 }
                 // +++ b/path/to/file
                 else if (line.startsWith("+++")) {
-                    // 提取文件路径
-                    currentFilePath = extractFilePath(line);
+                    // 检查是否是文件删除（+++ /dev/null）
+                    if (line.contains("/dev/null")) {
+                        isFileDeleted = true;
+                        // 使用旧文件路径
+                        if (oldFilePath != null && oldFilePath.endsWith(".java")) {
+                            currentFilePath = oldFilePath;
+                            currentHunk = new DiffHunk(currentFilePath);
+                            currentHunk.setFileDeleted(true);
+                        }
+                    } else {
+                        // 正常情况：提取新文件路径
+                        currentFilePath = extractFilePath(line);
+                        isFileDeleted = false;
 
-                    // 只处理Java文件
-                    if (currentFilePath != null && currentFilePath.endsWith(".java")) {
-                        currentHunk = new DiffHunk(currentFilePath);
+                        // 只处理Java文件
+                        if (currentFilePath != null && currentFilePath.endsWith(".java")) {
+                            currentHunk = new DiffHunk(currentFilePath);
+                            currentHunk.setFileDeleted(false);
+                        }
                     }
                 }
                 // @@ -old_line,old_count +new_line,new_count @@ optional context
@@ -104,7 +126,27 @@ public class GitDiffParser {
     }
 
     /**
-     * 从diff行中提取文件路径
+     * 从diff行中提取旧文件路径
+     * 例如: "--- a/src/main/java/Example.java" -> "src/main/java/Example.java"
+     */
+    private String extractOldFilePath(String line) {
+        // --- a/path 或 --- /dev/null
+        if (line.contains("/dev/null")) {
+            return null;  // 文件是新增的
+        }
+
+        // 提取 a/ 之后的路径
+        int aIndex = line.indexOf("a/");
+        if (aIndex >= 0) {
+            return line.substring(aIndex + 2).trim();
+        }
+
+        // 降级：去掉--- 和空格
+        return line.replaceFirst("^---\\s+", "").trim();
+    }
+
+    /**
+     * 从diff行中提取新文件路径
      * 例如: "+++ b/src/main/java/Example.java" -> "src/main/java/Example.java"
      */
     private String extractFilePath(String line) {
