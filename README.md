@@ -109,7 +109,7 @@ mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
 ### 执行步骤
 第1步：解析 git diff 生成 `generated_input.json
 
-'''java
+```bash
 mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
   -Dexec.args="parse-diff \
     --diff git_diff_original.txt \
@@ -118,12 +118,11 @@ mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
     --neo4j-uri bolt://localhost:7687 \
     --neo4j-user neo4j \
     --neo4j-password test654321"
-
-'''
+```
 
 第2步：根据generated_input.json变更信息，向neo4j查询每个变更实体的调用链上下游信息，生成output.json
 
-'''java
+```bash
 mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
   -Dexec.args="query-calls \
     --input generated_input.json \
@@ -131,5 +130,4 @@ mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
     --neo4j-uri bolt://localhost:7687 \
     --neo4j-user neo4j \
     --neo4j-password your_password"
-
-'''
+```
