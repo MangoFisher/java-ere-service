@@ -107,7 +107,7 @@ mvn compile exec:java -Dexec.mainClass="com.java.ere.entry.ExportToNeo4jMain" \
     - **Lambda 表达式** - 作为方法体变更的一部分
     - **匿名内部类** - 作为方法体变更的一部分
 ### 执行步骤
-第1步：解析 git diff 生成 `generated_input.json
+第1步：解析git diff原始输出内容，生成 generated_input.json
 
 ```bash
 mvn exec:java -Dexec.mainClass="com.java.extractor.cli.ExtractorCLI" \
