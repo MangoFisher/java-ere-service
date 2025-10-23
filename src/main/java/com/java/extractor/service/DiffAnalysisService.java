@@ -5,7 +5,11 @@ import com.google.gson.GsonBuilder;
 import com.java.extractor.diff.DiffHunk;
 import com.java.extractor.diff.GitDiffParser;
 import com.java.extractor.diff.JavaChangeExtractor;
+import com.java.extractor.filter.CompositeChangeFilter;
+import com.java.extractor.filter.FilterConfig;
+import com.java.extractor.filter.FilterConfigLoader;
 import com.java.extractor.model.ChangeInfo;
+import com.java.extractor.util.CodeLineFilter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +30,15 @@ public class DiffAnalysisService {
 
     public DiffAnalysisService() {
         this.diffParser = new GitDiffParser();
-        this.changeExtractor = new JavaChangeExtractor();
+
+        // 加载过滤器配置（包含代码行过滤配置）
+        FilterConfig filterConfig = FilterConfigLoader.loadConfig();
+        CodeLineFilter codeLineFilter = new CodeLineFilter(
+            filterConfig.getCodeLineFilter()
+        );
+
+        // 使用代码行过滤器创建变更提取器
+        this.changeExtractor = new JavaChangeExtractor(codeLineFilter);
         this.gson = new GsonBuilder().setPrettyPrinting().create();
     }
 
@@ -79,11 +91,15 @@ public class DiffAnalysisService {
                 allChanges.addAll(changes);
             }
 
-            // 后处理：合并跨 hunk 的 ClassOrInterface 记录，并过滤注释
+            // 后处理：合并跨 hunk 的 ClassOrInterface 记录
             allChanges = postProcessChanges(allChanges);
 
             System.out.println();
             System.out.println("  共提取 " + allChanges.size() + " 个变更");
+
+            // 应用过滤器
+            allChanges = applyFilters(allChanges);
+
             System.out.println();
 
             // 3. 生成输入JSON
@@ -113,9 +129,30 @@ public class DiffAnalysisService {
     }
 
     /**
+     * 应用过滤器
+     */
+    private List<ChangeInfo> applyFilters(List<ChangeInfo> changes) {
+        try {
+            // 加载过滤器配置
+            FilterConfig filterConfig = FilterConfigLoader.loadConfig();
+
+            // 创建组合过滤器
+            CompositeChangeFilter filter = new CompositeChangeFilter(
+                filterConfig
+            );
+
+            // 应用过滤
+            return filter.filter(changes);
+        } catch (Exception e) {
+            System.err.println("[过滤器] 应用过滤失败: " + e.getMessage());
+            System.out.println("[过滤器] 跳过过滤，返回原始数据");
+            return changes;
+        }
+    }
+
+    /**
      * 后处理变更记录：
-     * 1. 合并同一个类的多个 ClassOrInterface 记录（跨 hunk）
-     * 2. 过滤掉注释行，只保留实际代码
+     * 合并同一个类的多个 ClassOrInterface 记录（跨 hunk）
      */
     private List<ChangeInfo> postProcessChanges(List<ChangeInfo> changes) {
         // 分离 ClassOrInterface 和其他类型的记录
@@ -135,11 +172,6 @@ public class DiffAnalysisService {
             } else {
                 otherChanges.add(change);
             }
-        }
-
-        // 过滤 ClassOrInterface 记录中的注释行
-        for (ChangeInfo classChange : classChanges.values()) {
-            filterCommentLines(classChange);
         }
 
         // 合并结果
@@ -174,53 +206,6 @@ public class DiffAnalysisService {
             }
             existing.getRemovedLines().addAll(newChange.getRemovedLines());
         }
-    }
-
-    /**
-     * 过滤注释行，只保留实际代码
-     */
-    private void filterCommentLines(ChangeInfo change) {
-        if (change.getAddedLines() != null) {
-            List<String> filtered = change
-                .getAddedLines()
-                .stream()
-                .filter(this::isActualCode)
-                .collect(java.util.stream.Collectors.toList());
-            change.setAddedLines(filtered);
-        }
-
-        if (change.getRemovedLines() != null) {
-            List<String> filtered = change
-                .getRemovedLines()
-                .stream()
-                .filter(this::isActualCode)
-                .collect(java.util.stream.Collectors.toList());
-            change.setRemovedLines(filtered);
-        }
-    }
-
-    /**
-     * 判断是否为实际代码（非注释、非空行）
-     */
-    private boolean isActualCode(String line) {
-        String trimmed = line.trim();
-
-        // 过滤空行
-        if (trimmed.isEmpty()) {
-            return false;
-        }
-
-        // 过滤单行注释
-        if (trimmed.startsWith("//")) {
-            return false;
-        }
-
-        // 过滤多行注释
-        if (trimmed.startsWith("/*") || trimmed.startsWith("*")) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
@@ -276,18 +261,56 @@ public class DiffAnalysisService {
             map.put("fieldName", change.getFieldName());
         }
 
-        // 添加代码段
-        if (
-            change.getAddedLines() != null && !change.getAddedLines().isEmpty()
-        ) {
-            map.put("addedLines", change.getAddedLines());
-        }
+        // 添加代码段（根据 entity_type 和 changeType 决定）
+        String entityType = change.getEntity_type();
+        String changeType = change.getChangeType();
 
-        if (
-            change.getRemovedLines() != null &&
-            !change.getRemovedLines().isEmpty()
-        ) {
-            map.put("removedLines", change.getRemovedLines());
+        if ("Field".equals(entityType)) {
+            // Field: addedLines 仅在 ADD 时出现，removedLines 仅在 DELETE 时出现
+            if ("ADD".equals(changeType) && change.getAddedLines() != null) {
+                map.put("addedLines", change.getAddedLines());
+            }
+            if (
+                "DELETE".equals(changeType) && change.getRemovedLines() != null
+            ) {
+                map.put("removedLines", change.getRemovedLines());
+            }
+            // 添加 scope 字段
+            if (change.getScope() != null) {
+                map.put("scope", change.getScope());
+            }
+        } else if ("Method".equals(entityType)) {
+            // Method: addedLines 和 removedLines 始终存在
+            map.put(
+                "addedLines",
+                change.getAddedLines() != null
+                    ? change.getAddedLines()
+                    : new ArrayList<>()
+            );
+            map.put(
+                "removedLines",
+                change.getRemovedLines() != null
+                    ? change.getRemovedLines()
+                    : new ArrayList<>()
+            );
+            // 添加 signatureChange 字段
+            if (change.getSignatureChange() != null) {
+                map.put("signatureChange", change.getSignatureChange());
+            }
+        } else if ("ClassOrInterface".equals(entityType)) {
+            // ClassOrInterface: addedLines 和 removedLines 始终存在
+            map.put(
+                "addedLines",
+                change.getAddedLines() != null
+                    ? change.getAddedLines()
+                    : new ArrayList<>()
+            );
+            map.put(
+                "removedLines",
+                change.getRemovedLines() != null
+                    ? change.getRemovedLines()
+                    : new ArrayList<>()
+            );
         }
 
         return map;

@@ -22,10 +22,10 @@
 
 # 项目基本信息
 project:
-  name: "Spring Boot Admin Client by mango"
-  root: "/Users/zhangxiaoguo/Downloads/spring-boot-admin-3.5.5/spring-boot-admin-client"
+  name: "java-callgraph2-main by mango"
+  root: "/Users/zhangxiaoguo/Downloads/java-callgraph2"
   packages:
-    - "de.codecentric.boot.admin"  # 项目包名（包含 client 及其所有子包）
+    - "com.adrninistrator.javacg2" # 项目包名（包含 client 及其所有子包）
 
 # 源码路径（用于符号解析）
 sources:
@@ -36,7 +36,7 @@ analysis:
   # 包含规则，如果文件匹配任何 include 规则 → 保留，如果没有 include 规则 → 全部保留，如果有 include 规则但不匹配 → 跳过
   includes:
     - "src/main/java/**/*.java"
-  
+
   # 排除规则（优先级高于 includes），如果文件匹配任何 exclude 规则 → 直接跳过
   excludes:
     - "**/test/**"
@@ -46,29 +46,29 @@ analysis:
 symbolResolver:
   # 是否包含 JDK 类
   includeJdk: true
-  
+
   # 第三方库JAR包加载配置（影响符号解析能力）
   dependencies:
     # 说明：控制是否加载JAR包到符号解析器，用于解析第三方库调用
     # 注意：即使是 none 模式，AST分析仍能识别大部分第三方调用（基于import语句）
-    # 
-    # 模式选项: 
+    #
+    # 模式选项:
     #  none: 不加载JAR包（推荐）
     #        - 优势：最快启动、无需准备依赖、内存占用低
     #        - 能力：AST能识别95%+的第三方调用
     #        - 适合：日常业务分析
-    # 
+    #
     #  essential: 加载 essentialPatterns 配置的核心库
     #        - 优势：平衡性能和准确性
     #        - 能力：AST + 符号解析器补充
     #        - 适合：需要更精确的类型推断
-    # 
+    #
     #  all: 加载 localDir 中所有JAR包
     #        - 优势：最准确的符号解析
     #        - 劣势：慢启动、高内存（2GB+）
     #        - 适合：框架源码分析
-    mode: "none"  # 使用AST+注解推断方案，不需要JAR包
-    
+    mode: "none" # 使用AST+注解推断方案，不需要JAR包
+
     # essential 模式下加载的核心库
     essentialPatterns:
       - "spring-context"
@@ -77,7 +77,7 @@ symbolResolver:
       - "lombok"
       - "mybatis"
       - "slf4j-api"
-    
+
     # 本地依赖目录
     localDir: "target/dependency"
 
@@ -86,18 +86,18 @@ extraction:
   # 第三方库调用记录策略（控制如何记录已识别的第三方调用）
   # 说明：当业务代码调用第三方库（如Spring、MyBatis等）时，如何处理
   # 注意：这个配置独立于上面的 mode，即使 mode="none" 也能识别第三方调用
-  # 
+  #
   # 策略选项:
   #  ignore: 完全忽略
   #        - 不记录任何第三方调用信息
   #        - 适合：只关心业务代码内部调用链
-  # 
+  #
   #  mark: 标记为外部依赖（推荐）
   #        - 记录到方法的 external_dependencies 属性中
   #        - 不为第三方库创建实体节点
   #        - 优势：保留依赖信息、图谱干净、性能好
   #        - 适合：影响分析、依赖统计、技术栈评估
-  # 
+  #
   #  full: 创建完整实体和关系
   #        - 为第三方类和方法创建实体节点
   #        - 建立业务代码 → 第三方的 calls 关系
@@ -105,66 +105,182 @@ extraction:
   #        - 注意：需要配合 mode="all" 才能分析第三方内部实现
   #        - 适合：可视化完整调用图、框架源码研究
   thirdPartyCallStrategy: "full"
-  
+
   # 是否提取注解信息（全局开关，影响 has_annotation 关系）
   includeAnnotations: true
-  
+
   # 是否提取 Javadoc
   includeJavadoc: true
-  
+
   # ==================== 预设分析场景 ====================
   # 场景说明:
   #   call_chain: 调用链分析（实体2个 + 关系1个）
   #               - 实体: ClassOrInterface, Method
   #               - 关系: calls
   #               - 性能: 最快（~5秒）
-  #               
+  #
   #   impact_analysis: 影响范围分析（实体5个 + 关系3个）- 推荐
   #               - 实体: ClassOrInterface, Method, Parameter, Return, Field
   #               - 关系: calls, has_parameter, returns
   #               - 性能: 中等（~15秒）
-  #               
+  #
   #   full: 完整分析（实体6个 + 关系8个）
   #               - 实体: ClassOrInterface, Method, Parameter, Return, Field, Exception
   #               - 关系: calls, overrides, has_parameter, returns, accesses, throws, has_annotation, implements
   #               - 性能: 慢（几分钟，取决于项目规模和未实现功能）
-  #               
+  #
   #   custom: 自定义场景 - 使用下面的 entities 和 relations 自定义配置
   #
   scenario: "full"
-  
+
   # ==================== 6种实体类型配置 ====================
   # 说明: 只在 scenario="custom" 时生效，预设场景会覆盖此配置
   entities:
-    ClassOrInterface: true    # ✅ 已实现 | 类/接口（提供方法归属）
-    Method: true              # ✅ 已实现 | 方法（核心实体）
-    Field: true               # ✅ 已实现 | 字段（数据依赖分析）
-    Parameter: true           # ✅ 已实现 | 参数（API签名分析）
-    Return: true              # ✅ 已实现 | 返回值（类型兼容性）
-    Exception: false          # ❌ 未实现 | 异常（异常传播分析）
-  
+    ClassOrInterface: true # ✅ 已实现 | 类/接口（提供方法归属）
+    Method: true # ✅ 已实现 | 方法（核心实体）
+    Field: true # ✅ 已实现 | 字段（数据依赖分析）
+    Parameter: true # ✅ 已实现 | 参数（API签名分析）
+    Return: true # ✅ 已实现 | 返回值（类型兼容性）
+    Exception: false # ❌ 未实现 | 异常（异常传播分析）
+
   # ==================== 8种关系类型配置 ====================
   # 说明: 只在 scenario="custom" 时生效，预设场景会覆盖此配置
   relations:
-    calls: true               # ✅ 已实现 | 方法调用（核心关系）
-    overrides: false          # ❌ 未实现 | 方法重写（⚠️ 耗时极高）
-    has_parameter: true       # ✅ 已实现 | 参数关系
-    returns: true             # ✅ 已实现 | 返回值关系
-    accesses: false           # ❌ 未实现 | 字段访问
-    throws: false             # ❌ 未实现 | 抛出异常
-    has_annotation: false     # ❌ 未实现 | 注解使用
-    implements: false         # ❌ 未实现 | 类实现
-  
+    calls: true # ✅ 已实现 | 方法调用（核心关系）
+    overrides: false # ❌ 未实现 | 方法重写（⚠️ 耗时极高）
+    has_parameter: true # ✅ 已实现 | 参数关系
+    returns: true # ✅ 已实现 | 返回值关系
+    accesses: false # ❌ 未实现 | 字段访问
+    throws: false # ❌ 未实现 | 抛出异常
+    has_annotation: false # ❌ 未实现 | 注解使用
+    implements: false # ❌ 未实现 | 类实现
+
   # ==================== 高级选项 ====================
   # 符号解析失败时的处理策略
   #   ignore: 静默忽略，不输出任何信息
   #   warn: 输出警告信息（推荐）
   #   error: 抛出错误并停止分析
   onResolutionFailure: "warn"
-  
+
   # 是否启用性能统计（输出各阶段耗时）
   enablePerformanceStats: true
-  
+
   # 是否自动补全依赖的实体
   # 例如: 如果 has_parameter 关系开启，自动开启 Parameter 实体
   autoCompleteEntities: true
+
+# ==================== Git Diff 提取过滤配置 ====================
+# 用于过滤从 git diff 中提取的变更记录
+# 支持分层过滤：通用过滤 + Field/Method/ClassOrInterface 专用过滤
+git_diff_extraction:
+  # ==================== 代码行过滤配置 ====================
+  # 在变更提取阶段过滤非业务代码行（空行、注释、日志等）
+  # 这是最基础的过滤，会影响所有实体类型的 addedLines 和 removedLines
+  code_line_filter:
+    # 是否过滤空行
+    filter_empty_lines: true
+
+    # 是否过滤注释（单行注释、多行注释、Javadoc）
+    filter_comments: true
+
+    # 是否过滤日志语句
+    filter_logging_statements: true
+
+    # 日志语句匹配模式（正则表达式）
+    logging_patterns:
+      - "logger\\." # logger.info/debug/error/warn/trace
+      - "log\\." # log.info/debug/error/warn
+      - "LOGGER\\." # LOGGER (大写)
+      - "LOG\\." # LOG (大写)
+      - "System\\.out\\." # System.out.println/print/printf
+      - "System\\.err\\." # System.err.println/print/printf
+
+    # 是否过滤导入和包声明
+    filter_imports_and_packages: false
+
+    # 自定义排除模式（正则表达式）
+    custom_exclude_patterns:
+      - "printStackTrace\\(\\)" # e.printStackTrace()
+      - "\\.printStackTrace\\(\\)" # exception.printStackTrace()
+      # - "TODO:"                   # TODO 注释（取消注释以启用）
+      # - "FIXME:"                  # FIXME 注释（取消注释以启用）
+      # - "XXX:"                    # XXX 注释（取消注释以启用）
+
+  # ==================== 通用过滤规则 ====================
+  # 适用于所有实体类型（Field/Method/ClassOrInterface）
+  common:
+    # 排除的文件路径（支持通配符 *）
+    exclude_paths:
+      - "src/test/*"
+      - "*/test/*"
+
+    # 包含的包名（如果配置，则只保留匹配的包）
+    include_packages:
+      # - "com.example.core"
+      # - "com.example.service"
+
+    # 变更类型过滤（如果配置，则只保留指定类型）
+    change_types:
+      # - "ADD"
+      # - "MODIFY"
+      # - "DELETE"
+
+    # 排除的类名（支持通配符 *）
+    exclude_class_names:
+      - "*Test"
+      - "*Mock"
+
+  # Field 专用过滤规则
+  field:
+    # 作用域过滤（ClassOrInterface=类成员变量, Method=方法局部变量）
+    scopes:
+      # - "ClassOrInterface"
+      # - "Method"
+
+    # 是否只保留常量字段
+    constants_only: false
+
+    # 排除的字段名（支持通配符 *）
+    exclude_field_names:
+      - "temp*"
+      - "tmp*"
+      - "logger"
+      - "log"
+
+    # 包含的字段名（如果配置，则只保留匹配的字段）
+    include_field_names:
+      # - "CONFIG_*"
+
+  # Method 专用过滤规则
+  method:
+    # 是否只保留签名变更的方法
+    signature_changed_only: false
+
+    # 最小变更行数（小于此值的方法变更将被过滤）
+    min_changed_lines: 0
+
+    # 排除的方法名（支持通配符 *）
+    exclude_method_names:
+      - "get*"
+      - "set*"
+      - "test*"
+
+    # 包含的方法名（如果配置，则只保留匹配的方法）
+    include_method_names:
+      # - "process*"
+      # - "handle*"
+
+  # ClassOrInterface 专用过滤规则
+  class_or_interface:
+    # 最小变更行数（小于此值的类变更将被过滤）
+    min_changed_lines: 0
+
+    # 排除的类名（支持通配符 *）
+    exclude_class_names:
+      - "*Test"
+      - "*Mock"
+
+    # 包含的类名（如果配置，则只保留匹配的类）
+    include_class_names:
+      # - "*Service"
+      # - "*Controller"
