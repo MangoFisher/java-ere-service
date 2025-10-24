@@ -1,0 +1,39 @@
+
+//记录Field变更的数据结构示例
+{
+  "addedLines": [], //记录增加的变量，changeType=ADD时，才会出现
+  "removedLines": [], //记录删除的变量，changeType=DELETE时，才会出现
+  "entity_type": "Field",
+  "fieldName": "CLASS_NAME_LAMBDA_META_FACTORY", //变量名
+  "changeType": "ADD", //变更类型, ADD或者DELETE
+  "filePath": "src/main/java/com/adrninistrator/javacg2/common/JavaCG2CommonNameConstants.java", //文件路径
+  "className": "JavaCG2CommonNameConstants", //类名
+  "methodName": "isSuperCallChild", //方法名, 如果是方法内变量则会记录，如果是类变量则可为空
+  "scope": "Method" //变量作用域, ClassOrInterface代表类成员变量, Method代表方法局部变量
+},
+
+//记录Method变更的数据结构示例
+{
+  "addedLines": [], //记录增加的变更，包括方法声明行、方法体行、方法注释行、方法参数行、方法返回类型行，不管changeType为什么类型，这个结构一直存在，
+                    //按实际情况记录，如果实际没有新增变更，则记录为空即可
+  "removedLines": [], //记录删除的变更，包括方法声明行、方法体行、方法注释行、方法参数行、方法返回类型行，不管changeType为什么类型，这个结构一直存在，
+                    //按实际情况记录，如果实际没有新增变更，则记录为空即可
+  "entity_type": "Method",
+  "changeType": "ADD", //变更类型, ADD(新增方法)、DELETE（删除方法）、MODIFY（方法体内有变更、方法签名变更）
+  "filePath": "src/main/java/com/adrninistrator/javacg2/common/enums/JavaCG2CallTypeEnum.java", //文件路径
+  "methodSignature": "String", //方法签名, 如果签名发生了变化，则记录变化后的
+  "signatureChange": true, //记录函数签名是否发生了变化，布尔类型，true代表有变化
+  "methodName": "isCalleeReplaceType", //方法名
+  "className": "JavaCG2CallTypeEnum" //类名
+},
+
+
+//记录ClassOrInterface变更的数据结构示例
+{
+  "addedLines": [], //记录跟类有关的所有增加的变更，包括类体内的方法、变量等，不管changeType为什么类型，这个结构一直存在，按实际情况记录，如果实际没有新增变更，则记录为空即可
+  "entity_type": "ClassOrInterface",
+  "removedLines": [], //记录跟类有关的所有删除的变更，包括类体内的方法、变量等，不管changeType为什么类型，这个结构一直存在，按实际情况记录，如果实际没有删除变更，则记录为空即可
+  "changeType": "MODIFY", //变更类型, ADD(新增类或接口)、DELETE（删除类或接口）、MODIFY（类或接口体内有变更、类或接口声明有变更）
+  "filePath": "src/main/java/com/adrninistrator/javacg2/common/JavaCG2CommonNameConstants.java",
+  "className": "JavaCG2CommonNameConstants"
+},
