@@ -521,6 +521,11 @@ public class JavaChangeExtractor {
                             changeType +
                             "] 方法: " +
                             methodName +
+                            " (新增: " +
+                            addedLines.size() +
+                            "行, 删除: " +
+                            removedLines.size() +
+                            "行)" +
                             (signatureChanged ? " (签名变更)" : "")
                     );
                 }

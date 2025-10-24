@@ -260,10 +260,8 @@ git_diff_extraction:
     min_changed_lines: 0
 
     # 排除的方法名（支持通配符 *）
-    exclude_method_names:
-      - "get*"
-      - "set*"
-      - "test*"
+    # 已移除 get*/set*/test* 过滤规则，避免误伤有业务逻辑的方法
+    exclude_method_names: []
 
     # 包含的方法名（如果配置，则只保留匹配的方法）
     include_method_names:
