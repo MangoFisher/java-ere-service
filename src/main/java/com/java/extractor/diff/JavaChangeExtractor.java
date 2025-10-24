@@ -109,13 +109,8 @@ public class JavaChangeExtractor {
                 return changes;
             }
 
-            // 提取类成员变量
+            // 提取类成员变量（不再提取局部变量）
             changes.addAll(extractClassFields(hunk, cu, className, filePath));
-
-            // 提取局部变量
-            changes.addAll(
-                extractLocalVariables(hunk, cu, className, filePath)
-            );
         } catch (Exception e) {
             System.err.println("    [警告] Field提取失败: " + e.getMessage());
         }
@@ -136,6 +131,14 @@ public class JavaChangeExtractor {
         Map<String, List<String>> addedFieldLines = new HashMap<>();
         Map<String, List<String>> removedFieldLines = new HashMap<>();
 
+        // 先过滤掉日志语句等非业务代码
+        List<String> filteredAddedLines = codeLineFilter.filter(
+            hunk.getAddedLines()
+        );
+        List<String> filteredRemovedLines = codeLineFilter.filter(
+            hunk.getRemovedLines()
+        );
+
         // 获取所有类成员字段
         List<FieldDeclaration> fields = cu.findAll(FieldDeclaration.class);
 
@@ -147,8 +150,8 @@ public class JavaChangeExtractor {
             for (VariableDeclarator var : field.getVariables()) {
                 String fieldName = var.getNameAsString();
 
-                // 检查是否在新增行中
-                for (String line : hunk.getAddedLines()) {
+                // 检查是否在新增行中（使用过滤后的行）
+                for (String line : filteredAddedLines) {
                     if (containsFieldDeclaration(line, fieldName)) {
                         addedFieldLines
                             .computeIfAbsent(fieldName, k -> new ArrayList<>())
@@ -156,8 +159,8 @@ public class JavaChangeExtractor {
                     }
                 }
 
-                // 检查是否在删除行中
-                for (String line : hunk.getRemovedLines()) {
+                // 检查是否在删除行中（使用过滤后的行）
+                for (String line : filteredRemovedLines) {
                     if (containsFieldDeclaration(line, fieldName)) {
                         removedFieldLines
                             .computeIfAbsent(fieldName, k -> new ArrayList<>())
@@ -168,8 +171,8 @@ public class JavaChangeExtractor {
         }
 
         // 对于 removedLines，JavaParser 可能无法找到（因为字段已被删除）
-        // 需要直接从 removedLines 中解析字段名
-        for (String line : hunk.getRemovedLines()) {
+        // 需要直接从 removedLines 中解析字段名（使用过滤后的行）
+        for (String line : filteredRemovedLines) {
             String fieldName = parseFieldNameFromLine(line);
             if (
                 fieldName != null && !removedFieldLines.containsKey(fieldName)
@@ -454,16 +457,16 @@ public class JavaChangeExtractor {
                 List<String> removedLines = new ArrayList<>();
                 boolean signatureChanged = false;
 
-                // 检查新增行
-                for (String line : hunk.getAddedLines()) {
+                // 检查新增行（使用精确的行号匹配 + 过滤明显的类级别代码）
+                for (ChangedLine changedLine : hunk.getAddedLinesWithNumbers()) {
+                    String line = changedLine.getContent();
+                    int lineNumber = changedLine.getLineNumber();
+
                     if (
                         !line.trim().isEmpty() &&
-                        isLineInMethodRange(
-                            line,
-                            methodStartLine,
-                            methodEndLine,
-                            hunk
-                        )
+                        !isObviouslyNotInMethod(line) &&
+                        lineNumber >= methodStartLine &&
+                        lineNumber <= methodEndLine
                     ) {
                         addedLines.add(line);
 
@@ -474,22 +477,22 @@ public class JavaChangeExtractor {
                     }
                 }
 
-                // 检查删除行
-                for (String line : hunk.getRemovedLines()) {
-                    if (
-                        !line.trim().isEmpty() &&
-                        isLineInMethodRange(
-                            line,
-                            methodStartLine,
-                            methodEndLine,
-                            hunk
-                        )
-                    ) {
-                        removedLines.add(line);
+                // 检查删除行（改进策略：只有当方法有新增行时才处理删除行）
+                // 因为删除行的行号基于旧文件，无法精确匹配新文件的方法位置
+                if (!addedLines.isEmpty()) {
+                    for (ChangedLine changedLine : hunk.getRemovedLinesWithNumbers()) {
+                        String line = changedLine.getContent();
 
-                        // 判断是否是方法签名行
-                        if (containsMethodSignature(line, methodName)) {
-                            signatureChanged = true;
+                        if (
+                            !line.trim().isEmpty() &&
+                            !isObviouslyNotInMethod(line)
+                        ) {
+                            removedLines.add(line);
+
+                            // 判断是否是方法签名行
+                            if (containsMethodSignature(line, methodName)) {
+                                signatureChanged = true;
+                            }
                         }
                     }
                 }
@@ -613,17 +616,82 @@ public class JavaChangeExtractor {
     }
 
     /**
-     * 判断行是否在方法范围内（简化版，基于行内容匹配）
+     * 判断删除行是否明显不在方法内（启发式规则）
+     * 只识别明显的类级别代码特征，减少误判
      */
-    private boolean isLineInMethodRange(
-        String line,
-        int methodStartLine,
-        int methodEndLine,
-        DiffHunk hunk
-    ) {
-        // 简化处理：假设方法内的所有变更行都会被匹配
-        // 实际实现中可能需要更精确的行号计算
-        return true;
+    private boolean isObviouslyNotInMethod(String line) {
+        String trimmed = line.trim();
+
+        // 空行，跳过
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+
+        // 明显不在方法内的代码特征：
+
+        // 1. 枚举常量：大写字母开头，后跟括号
+        if (trimmed.matches("^[A-Z_][A-Z0-9_]*\\s*\\(.*")) {
+            return true;
+        }
+
+        // 2. 枚举常量的续行：以大量空格开头，包含参数和结束符
+        if (line.startsWith("            ") || line.startsWith("\t\t\t")) {
+            if (
+                trimmed.endsWith("),") ||
+                trimmed.endsWith("\");") ||
+                (trimmed.matches(".*\".*\"\\s*\\)[,;].*") &&
+                    !trimmed.contains("("))
+            ) {
+                return true;
+            }
+        }
+
+        // 3. 字段声明（不在方法内）
+        if (
+            trimmed.matches(
+                "^(private|public|protected)\\s+(static\\s+)?(final\\s+)?\\w+.*\\s+\\w+\\s*[;=].*"
+            )
+        ) {
+            if (!trimmed.contains("(") || trimmed.endsWith(";")) {
+                return true;
+            }
+        }
+
+        // 4. 类级别的注解
+        if (
+            trimmed.startsWith("@") &&
+            (trimmed.contains("class") ||
+                trimmed.contains("interface") ||
+                trimmed.contains("enum"))
+        ) {
+            return true;
+        }
+
+        // 5. 注释块
+        if (
+            trimmed.equals("/**") ||
+            trimmed.equals("*/") ||
+            trimmed.startsWith("/*")
+        ) {
+            return true;
+        }
+
+        // 6. 包声明、import语句
+        if (trimmed.startsWith("package ") || trimmed.startsWith("import ")) {
+            return true;
+        }
+
+        // 7. 类、接口、枚举声明行
+        if (
+            trimmed.matches(
+                "^(public|private|protected)?\\s*(static\\s+)?(final\\s+)?(class|interface|enum)\\s+\\w+.*"
+            )
+        ) {
+            return true;
+        }
+
+        // 其他情况：不能确定，认为可能在方法内
+        return false;
     }
 
     /**

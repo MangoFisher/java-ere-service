@@ -18,10 +18,16 @@ public class DiffHunk {
     private String hunkContext;        // hunk header中的上下文信息（如方法名、类名）
     private boolean isFileDeleted;     // 标记文件是否被删除
 
+    // 带行号的变更行
+    private List<ChangedLine> addedLinesWithNumbers;   // 新增的行（带行号）
+    private List<ChangedLine> removedLinesWithNumbers; // 删除的行（带行号）
+
     public DiffHunk() {
         this.addedLines = new ArrayList<>();
         this.removedLines = new ArrayList<>();
         this.contextLines = new ArrayList<>();
+        this.addedLinesWithNumbers = new ArrayList<>();
+        this.removedLinesWithNumbers = new ArrayList<>();
         this.isFileDeleted = false;
     }
 
@@ -63,6 +69,21 @@ public class DiffHunk {
     public void addContextLine(String line) {
         this.contextLines.add(line);
     }
+
+    /**
+     * 添加带行号的新增行
+     */
+    public void addAddedLineWithNumber(String content, int lineNumber) {
+        this.addedLinesWithNumbers.add(ChangedLine.added(content, lineNumber));
+    }
+
+    /**
+     * 添加带行号的删除行
+     */
+    public void addRemovedLineWithNumber(String content, int lineNumber) {
+        this.removedLinesWithNumbers.add(ChangedLine.removed(content, lineNumber));
+    }
+
 
     // Getters and Setters
 
@@ -138,6 +159,23 @@ public class DiffHunk {
     public void setFileDeleted(boolean fileDeleted) {
         isFileDeleted = fileDeleted;
     }
+
+    public List<ChangedLine> getAddedLinesWithNumbers() {
+        return addedLinesWithNumbers;
+    }
+
+    public void setAddedLinesWithNumbers(List<ChangedLine> addedLinesWithNumbers) {
+        this.addedLinesWithNumbers = addedLinesWithNumbers;
+    }
+
+    public List<ChangedLine> getRemovedLinesWithNumbers() {
+        return removedLinesWithNumbers;
+    }
+
+    public void setRemovedLinesWithNumbers(List<ChangedLine> removedLinesWithNumbers) {
+        this.removedLinesWithNumbers = removedLinesWithNumbers;
+    }
+
 
     @Override
     public String toString() {
