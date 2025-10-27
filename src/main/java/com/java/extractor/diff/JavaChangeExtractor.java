@@ -1,15 +1,5 @@
 package com.java.extractor.diff;
 
-import com.github.javaparser.StaticJavaParser;
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
-import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.MethodDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
-import com.java.extractor.filter.CodeLineFilterConfig;
-import com.java.extractor.model.ChangeInfo;
-import com.java.extractor.util.CodeLineFilter;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,6 +7,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import com.github.javaparser.StaticJavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.java.extractor.filter.CodeLineFilterConfig;
+import com.java.extractor.model.ChangeInfo;
+import com.java.extractor.util.CodeLineFilter;
 
 /**
  * Java变更提取器（重构版）
@@ -501,7 +501,8 @@ public class JavaChangeExtractor {
                 if (!addedLines.isEmpty() || !removedLines.isEmpty()) {
                     String changeType = determineMethodChangeType(
                         addedLines,
-                        removedLines
+                        removedLines,
+                        signatureChanged
                     );
 
                     ChangeInfo change = new ChangeInfo();
@@ -609,12 +610,13 @@ public class JavaChangeExtractor {
      */
     private String determineMethodChangeType(
         List<String> added,
-        List<String> removed
+        List<String> removed,
+        boolean signatureChanged
     ) {
-        if (added.isEmpty() && !removed.isEmpty()) {
+        if (added.isEmpty() && !removed.isEmpty() && signatureChanged) {
             return "DELETE";
         }
-        if (!added.isEmpty() && removed.isEmpty()) {
+        if (!added.isEmpty() && removed.isEmpty() && signatureChanged) {
             return "ADD";
         }
         return "MODIFY";
