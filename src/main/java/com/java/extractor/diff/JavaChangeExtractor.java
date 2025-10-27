@@ -553,11 +553,11 @@ public class JavaChangeExtractor {
             hunk.getRemovedLines()
         );
 
-        // 判断变更类型
+        // 判断变更类型（基于文件级别的标志）
         String changeType = "MODIFY";
         if (hunk.isFileDeleted()) {
             changeType = "DELETE";
-        } else if (isNewFile(hunk)) {
+        } else if (hunk.isNewFile()) {
             changeType = "ADD";
         }
 
@@ -814,11 +814,16 @@ public class JavaChangeExtractor {
 
     /**
      * 判断是否为新文件
+     * 注意：此方法已废弃，现在使用 hunk.isNewFile() 获取文件级别的标志
+     * 该标志基于 Git Diff 的 "new file mode" 和 "--- /dev/null" 标记
+     *
+     * @deprecated 使用 {@link DiffHunk#isNewFile()} 替代
      */
+    @Deprecated
     private boolean isNewFile(DiffHunk hunk) {
-        return (
-            hunk.getRemovedLines().isEmpty() && !hunk.getAddedLines().isEmpty()
-        );
+        // 此方法已废弃，但保留以防兼容性问题
+        // 正确的做法是使用 hunk.isNewFile()
+        return hunk.isNewFile();
     }
 
     /**

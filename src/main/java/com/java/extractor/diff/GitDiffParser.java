@@ -21,12 +21,19 @@ public class GitDiffParser {
     public List<DiffHunk> parse(String diffFilePath) throws IOException {
         List<DiffHunk> hunks = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(diffFilePath))) {
+        try (
+            BufferedReader reader = new BufferedReader(
+                new FileReader(diffFilePath)
+            )
+        ) {
             String line;
             DiffHunk currentHunk = null;
             String currentFilePath = null;
-            String oldFilePath = null;  // 用于跟踪旧文件路径（--- 行）
-            boolean isFileDeleted = false;  // 标记文件是否被删除
+            String oldFilePath = null; // 用于跟踪旧文件路径（--- 行）
+
+            // 文件级别的状态标志（同一文件的所有 hunk 共享）
+            boolean isFileDeleted = false; // 标记文件是否被删除
+            boolean isNewFile = false; // 标记文件是否为新文件
 
             // 追踪当前行号
             int currentOldLineNumber = 0;
@@ -35,16 +42,29 @@ public class GitDiffParser {
             while ((line = reader.readLine()) != null) {
                 // diff --git a/path/to/file b/path/to/file
                 if (line.startsWith("diff --git")) {
-                    // 开始新文件的diff
-                    if (currentHunk != null &&
+                    // 开始新文件的diff，保存上一个 hunk
+                    if (
+                        currentHunk != null &&
                         (!currentHunk.getAddedLines().isEmpty() ||
-                         !currentHunk.getRemovedLines().isEmpty() ||
-                         !currentHunk.getContextLines().isEmpty())) {
+                            !currentHunk.getRemovedLines().isEmpty() ||
+                            !currentHunk.getContextLines().isEmpty())
+                    ) {
                         hunks.add(currentHunk);
                     }
+                    // 重置文件级别的状态
                     currentHunk = null;
+                    currentFilePath = null;
                     oldFilePath = null;
                     isFileDeleted = false;
+                    isNewFile = false;
+                }
+                // new file mode 100644
+                else if (line.startsWith("new file mode")) {
+                    isNewFile = true;
+                }
+                // deleted file mode 100644
+                else if (line.startsWith("deleted file mode")) {
+                    isFileDeleted = true;
                 }
                 // --- a/path/to/file
                 else if (line.startsWith("---")) {
@@ -53,50 +73,47 @@ public class GitDiffParser {
                 }
                 // +++ b/path/to/file
                 else if (line.startsWith("+++")) {
-                    // 检查是否是文件删除（+++ /dev/null）
+                    // 提取新文件路径（或识别 /dev/null 标志删除）
                     if (line.contains("/dev/null")) {
+                        // 文件被删除，使用旧文件路径
                         isFileDeleted = true;
-                        // 使用旧文件路径
-                        if (oldFilePath != null && oldFilePath.endsWith(".java")) {
-                            currentFilePath = oldFilePath;
-                            currentHunk = new DiffHunk(currentFilePath);
-                            currentHunk.setFileDeleted(true);
-                        }
+                        currentFilePath = oldFilePath;
                     } else {
-                        // 正常情况：提取新文件路径
+                        // 正常情况或新文件：提取新文件路径
                         currentFilePath = extractFilePath(line);
-                        isFileDeleted = false;
-
-                        // 只处理Java文件
-                        if (currentFilePath != null && currentFilePath.endsWith(".java")) {
-                            currentHunk = new DiffHunk(currentFilePath);
-                            currentHunk.setFileDeleted(false);
-                        }
                     }
                 }
                 // @@ -old_line,old_count +new_line,new_count @@ optional context
                 else if (line.startsWith("@@")) {
+                    // 只处理 Java 文件
+                    if (
+                        currentFilePath == null ||
+                        !currentFilePath.endsWith(".java")
+                    ) {
+                        continue;
+                    }
+
                     // 新的变更块（hunk header）
                     if (currentHunk != null) {
                         // 如果当前hunk已有内容，保存它
-                        if (!currentHunk.getAddedLines().isEmpty() ||
+                        if (
+                            !currentHunk.getAddedLines().isEmpty() ||
                             !currentHunk.getRemovedLines().isEmpty() ||
-                            !currentHunk.getContextLines().isEmpty()) {
+                            !currentHunk.getContextLines().isEmpty()
+                        ) {
                             hunks.add(currentHunk);
-                            // 创建新hunk但保持相同的文件
-                            currentHunk = new DiffHunk(currentFilePath);
                         }
-                        // 解析行号信息并初始化行号追踪
-                        int[] lineNumbers = parseHunkHeader(line, currentHunk);
-                        currentOldLineNumber = lineNumbers[0];
-                        currentNewLineNumber = lineNumbers[1];
-                    } else if (currentFilePath != null && currentFilePath.endsWith(".java")) {
-                        // 如果还没有创建hunk，现在创建
-                        currentHunk = new DiffHunk(currentFilePath);
-                        int[] lineNumbers = parseHunkHeader(line, currentHunk);
-                        currentOldLineNumber = lineNumbers[0];
-                        currentNewLineNumber = lineNumbers[1];
                     }
+
+                    // 创建新 hunk 并设置文件级别的状态
+                    currentHunk = new DiffHunk(currentFilePath);
+                    currentHunk.setFileDeleted(isFileDeleted);
+                    currentHunk.setNewFile(isNewFile);
+
+                    // 解析行号信息并初始化行号追踪
+                    int[] lineNumbers = parseHunkHeader(line, currentHunk);
+                    currentOldLineNumber = lineNumbers[0];
+                    currentNewLineNumber = lineNumbers[1];
                 }
                 // + added line
                 else if (line.startsWith("+") && !line.startsWith("+++")) {
@@ -105,7 +122,10 @@ public class GitDiffParser {
                         String content = line.substring(1);
                         currentHunk.addAddedLine(content);
                         // 添加带行号的新增行
-                        currentHunk.addAddedLineWithNumber(content, currentNewLineNumber);
+                        currentHunk.addAddedLineWithNumber(
+                            content,
+                            currentNewLineNumber
+                        );
                         currentNewLineNumber++;
                     }
                 }
@@ -116,7 +136,10 @@ public class GitDiffParser {
                         String content = line.substring(1);
                         currentHunk.addRemovedLine(content);
                         // 添加带行号的删除行
-                        currentHunk.addRemovedLineWithNumber(content, currentOldLineNumber);
+                        currentHunk.addRemovedLineWithNumber(
+                            content,
+                            currentOldLineNumber
+                        );
                         currentOldLineNumber++;
                     }
                 }
@@ -132,9 +155,12 @@ public class GitDiffParser {
             }
 
             // 添加最后一个hunk
-            if (currentHunk != null && (!currentHunk.getAddedLines().isEmpty() ||
-                !currentHunk.getRemovedLines().isEmpty() ||
-                !currentHunk.getContextLines().isEmpty())) {
+            if (
+                currentHunk != null &&
+                (!currentHunk.getAddedLines().isEmpty() ||
+                    !currentHunk.getRemovedLines().isEmpty() ||
+                    !currentHunk.getContextLines().isEmpty())
+            ) {
                 hunks.add(currentHunk);
             }
         }
@@ -149,7 +175,7 @@ public class GitDiffParser {
     private String extractOldFilePath(String line) {
         // --- a/path 或 --- /dev/null
         if (line.contains("/dev/null")) {
-            return null;  // 文件是新增的
+            return null; // 文件是新增的
         }
 
         // 提取 a/ 之后的路径
@@ -169,7 +195,7 @@ public class GitDiffParser {
     private String extractFilePath(String line) {
         // +++ b/path 或 +++ /dev/null
         if (line.contains("/dev/null")) {
-            return null;  // 文件被删除
+            return null; // 文件被删除
         }
 
         // 提取 b/ 之后的路径
@@ -190,7 +216,8 @@ public class GitDiffParser {
     private int[] parseHunkHeader(String line, DiffHunk hunk) {
         // 正则匹配: @@ -335,6 +347,9 @@
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-            "@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@(.*)");
+            "@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@(.*)"
+        );
         java.util.regex.Matcher matcher = pattern.matcher(line);
 
         if (matcher.find()) {

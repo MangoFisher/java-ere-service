@@ -8,18 +8,22 @@ import java.util.List;
  * 表示一个文件中的变更块
  */
 public class DiffHunk {
-    private String filePath;           // 文件路径
-    private String className;          // 类名（从文件路径提取）
-    private List<String> addedLines;   // 新增的行
+
+    private String filePath; // 文件路径
+    private String className; // 类名（从文件路径提取）
+    private List<String> addedLines; // 新增的行
     private List<String> removedLines; // 删除的行
     private List<String> contextLines; // 上下文行（空格开头的行）
-    private int startLine;             // 开始行号
-    private int lineCount;             // 行数
-    private String hunkContext;        // hunk header中的上下文信息（如方法名、类名）
-    private boolean isFileDeleted;     // 标记文件是否被删除
+    private int startLine; // 开始行号
+    private int lineCount; // 行数
+    private String hunkContext; // hunk header中的上下文信息（如方法名、类名）
+
+    // 文件级别标志（同一文件的所有 hunk 共享相同的状态）
+    private boolean isFileDeleted; // 标记文件是否被删除（基于 "deleted file mode" 和 "+++ /dev/null"）
+    private boolean isNewFile; // 标记文件是否为新文件（基于 "new file mode" 和 "--- /dev/null"）
 
     // 带行号的变更行
-    private List<ChangedLine> addedLinesWithNumbers;   // 新增的行（带行号）
+    private List<ChangedLine> addedLinesWithNumbers; // 新增的行（带行号）
     private List<ChangedLine> removedLinesWithNumbers; // 删除的行（带行号）
 
     public DiffHunk() {
@@ -29,6 +33,7 @@ public class DiffHunk {
         this.addedLinesWithNumbers = new ArrayList<>();
         this.removedLinesWithNumbers = new ArrayList<>();
         this.isFileDeleted = false;
+        this.isNewFile = false;
     }
 
     public DiffHunk(String filePath) {
@@ -81,9 +86,10 @@ public class DiffHunk {
      * 添加带行号的删除行
      */
     public void addRemovedLineWithNumber(String content, int lineNumber) {
-        this.removedLinesWithNumbers.add(ChangedLine.removed(content, lineNumber));
+        this.removedLinesWithNumbers.add(
+            ChangedLine.removed(content, lineNumber)
+        );
     }
-
 
     // Getters and Setters
 
@@ -160,11 +166,21 @@ public class DiffHunk {
         isFileDeleted = fileDeleted;
     }
 
+    public boolean isNewFile() {
+        return isNewFile;
+    }
+
+    public void setNewFile(boolean newFile) {
+        isNewFile = newFile;
+    }
+
     public List<ChangedLine> getAddedLinesWithNumbers() {
         return addedLinesWithNumbers;
     }
 
-    public void setAddedLinesWithNumbers(List<ChangedLine> addedLinesWithNumbers) {
+    public void setAddedLinesWithNumbers(
+        List<ChangedLine> addedLinesWithNumbers
+    ) {
         this.addedLinesWithNumbers = addedLinesWithNumbers;
     }
 
@@ -172,21 +188,33 @@ public class DiffHunk {
         return removedLinesWithNumbers;
     }
 
-    public void setRemovedLinesWithNumbers(List<ChangedLine> removedLinesWithNumbers) {
+    public void setRemovedLinesWithNumbers(
+        List<ChangedLine> removedLinesWithNumbers
+    ) {
         this.removedLinesWithNumbers = removedLinesWithNumbers;
     }
 
-
     @Override
     public String toString() {
-        return "DiffHunk{" +
-                "filePath='" + filePath + '\'' +
-                ", className='" + className + '\'' +
-                ", added=" + addedLines.size() +
-                ", removed=" + removedLines.size() +
-                ", context=" + contextLines.size() +
-                ", startLine=" + startLine +
-                ", isFileDeleted=" + isFileDeleted +
-                '}';
+        return (
+            "DiffHunk{" +
+            "filePath='" +
+            filePath +
+            '\'' +
+            ", className='" +
+            className +
+            '\'' +
+            ", added=" +
+            addedLines.size() +
+            ", removed=" +
+            removedLines.size() +
+            ", context=" +
+            contextLines.size() +
+            ", startLine=" +
+            startLine +
+            ", isFileDeleted=" +
+            isFileDeleted +
+            '}'
+        );
     }
 }
