@@ -56,9 +56,9 @@ public class SourceExtractor {
      * 提取方法源码
      */
     private String extractMethodSource(EntityInfo entity) throws Exception {
-        File file = new File(entity.getFilePath());
+        File file = resolveFile(entity.getFilePath());
         if (!file.exists()) {
-            System.err.println("文件不存在: " + entity.getFilePath());
+            System.err.println("文件不存在: " + file.getAbsolutePath());
             return null;
         }
 
@@ -96,23 +96,23 @@ public class SourceExtractor {
      * 提取类源码
      */
     private String extractClassSource(EntityInfo entity) throws Exception {
-        File file = new File(entity.getFilePath());
+        File file = resolveFile(entity.getFilePath());
         if (!file.exists()) {
-            System.err.println("文件不存在: " + entity.getFilePath());
+            System.err.println("文件不存在: " + file.getAbsolutePath());
             return null;
         }
 
         // 对于类，返回整个文件内容
-        return new String(Files.readAllBytes(Paths.get(entity.getFilePath())));
+        return new String(Files.readAllBytes(file.toPath()));
     }
 
     /**
      * 提取字段源码
      */
     private String extractFieldSource(EntityInfo entity) throws Exception {
-        File file = new File(entity.getFilePath());
+        File file = resolveFile(entity.getFilePath());
         if (!file.exists()) {
-            System.err.println("文件不存在: " + entity.getFilePath());
+            System.err.println("文件不存在: " + file.getAbsolutePath());
             return null;
         }
 
@@ -158,7 +158,7 @@ public class SourceExtractor {
         }
 
         try {
-            File file = new File(methodEntity.getFilePath());
+            File file = resolveFile(methodEntity.getFilePath());
             if (!file.exists()) {
                 return null;
             }
@@ -190,5 +190,24 @@ public class SourceExtractor {
         }
 
         return null;
+    }
+
+    /**
+     * 解析文件路径：优先支持绝对路径；若为相对路径，则基于projectRoot解析
+     */
+    private File resolveFile(String path) {
+        if (path == null || path.isEmpty()) {
+            return new File("");
+        }
+        File direct = new File(path);
+        if (direct.isAbsolute()) {
+            return direct;
+        }
+        // 相对路径：拼接projectRoot
+        if (projectRoot != null && !projectRoot.isEmpty()) {
+            File joined = Paths.get(projectRoot, path).toFile();
+            return joined;
+        }
+        return direct;
     }
 }

@@ -5,7 +5,6 @@ import org.neo4j.driver.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Neo4j查询服务
@@ -44,7 +43,9 @@ public class Neo4jQueryService implements AutoCloseable {
 
         try (Session session = driver.session()) {
             return session.executeRead(tx -> {
-                Result result = tx.run(cypher, Map.of("entityId", entityId));
+                java.util.HashMap<String, Object> params = new java.util.HashMap<String, Object>();
+                params.put("entityId", entityId);
+                Result result = tx.run(cypher, params);
 
                 if (result.hasNext()) {
                     org.neo4j.driver.Record record = result.next();
@@ -98,7 +99,9 @@ public class Neo4jQueryService implements AutoCloseable {
 
         try (Session session = driver.session()) {
             session.executeRead(tx -> {
-                Result result = tx.run(cypher, Map.of("entityId", entityId));
+                java.util.HashMap<String, Object> params = new java.util.HashMap<String, Object>();
+                params.put("entityId", entityId);
+                Result result = tx.run(cypher, params);
 
                 while (result.hasNext()) {
                     org.neo4j.driver.Record record = result.next();
