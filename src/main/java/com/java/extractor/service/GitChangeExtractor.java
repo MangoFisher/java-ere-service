@@ -59,6 +59,10 @@ public class GitChangeExtractor {
                             } else if ("ClassOrInterface".equals(entityType)) {
                                 // 聚合到单个 ClassOrInterface 上下文
                                 appendChangesToClass(changeObject, classContext);
+                                // 同时记录类的 filePath（如果存在）
+                                if (changeObject.has("filePath")) {
+                                    classContext.setFilePath(changeObject.get("filePath").getAsString());
+                                }
                             }
                         }
                     }

@@ -22,6 +22,7 @@ public class ContextOutput extends HashMap<String, ContextOutput.ClassContext> {
         private List<EntityContext> Field;   // 由单个改为列表
         private List<EntityContext> Method;  // 由单个改为列表
         private EntityContext ClassOrInterface;
+        private String filePath; // 新增：类对应的文件路径
         
         public ClassContext() {
             this.Field = new ArrayList<>();
@@ -35,6 +36,9 @@ public class ContextOutput extends HashMap<String, ContextOutput.ClassContext> {
         public void setMethod(List<EntityContext> method) { Method = method; }
         public EntityContext getClassOrInterface() { return ClassOrInterface; }
         public void setClassOrInterface(EntityContext classOrInterface) { ClassOrInterface = classOrInterface; }
+
+        public String getFilePath() { return filePath; }
+        public void setFilePath(String filePath) { this.filePath = filePath; }
     }
     
     /**
