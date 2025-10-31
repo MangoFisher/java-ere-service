@@ -64,11 +64,20 @@ public class Neo4jQueryService implements AutoCloseable {
      */
     private String buildUpstreamQuery(int depth) {
         if (depth == 1) {
-            // 查询所有指向我的关系，只查询代码实体（Method/Field/Class）
+            // 上游定义：
+            // 1) 非结构型关系（CALLS/ACCESSES等）：入边 (upstream)->(target)
+            // 2) 结构型关系（IMPLEMENTS/EXTENDS/OVERRIDES）：出边 (target)->(upstream) 也视为上游
             return "MATCH (upstream)-[r]->(target) " +
                    "WHERE target.id = $entityId " +
+                   "AND NOT type(r) IN ['IMPLEMENTS','EXTENDS','OVERRIDES'] " +
                    "AND (upstream.id STARTS WITH 'method_' OR upstream.id STARTS WITH 'field_' OR upstream.id STARTS WITH 'class_' OR upstream.id STARTS WITH 'iface_') " +
-                   "RETURN upstream, type(r) as relType";
+                   "RETURN upstream AS node, type(r) as relType " +
+                   "UNION " +
+                   "MATCH (target)-[r]->(upstream) " +
+                   "WHERE target.id = $entityId " +
+                   "AND type(r) IN ['IMPLEMENTS','EXTENDS','OVERRIDES'] " +
+                   "AND (upstream.id STARTS WITH 'method_' OR upstream.id STARTS WITH 'field_' OR upstream.id STARTS WITH 'class_' OR upstream.id STARTS WITH 'iface_') " +
+                   "RETURN upstream AS node, type(r) as relType";
         } else {
             // 暂不支持多层深度
             throw new UnsupportedOperationException("暂不支持深度 > 1 的查询");
@@ -80,11 +89,20 @@ public class Neo4jQueryService implements AutoCloseable {
      */
     private String buildDownstreamQuery(int depth) {
         if (depth == 1) {
-            // 查询我指向的所有关系，只查询代码实体（Method/Field/Class）
+            // 下游定义：
+            // 1) 非结构型关系：出边 (source)->(downstream)
+            // 2) 结构型关系（IMPLEMENTS/EXTENDS/OVERRIDES）：入边 (downstream)->(source) 也视为下游
             return "MATCH (source)-[r]->(downstream) " +
                    "WHERE source.id = $entityId " +
+                   "AND NOT type(r) IN ['IMPLEMENTS','EXTENDS','OVERRIDES'] " +
                    "AND (downstream.id STARTS WITH 'method_' OR downstream.id STARTS WITH 'field_' OR downstream.id STARTS WITH 'class_' OR downstream.id STARTS WITH 'iface_') " +
-                   "RETURN downstream, type(r) as relType";
+                   "RETURN downstream AS node, type(r) as relType " +
+                   "UNION " +
+                   "MATCH (downstream)-[r]->(source) " +
+                   "WHERE source.id = $entityId " +
+                   "AND type(r) IN ['IMPLEMENTS','EXTENDS','OVERRIDES'] " +
+                   "AND (downstream.id STARTS WITH 'method_' OR downstream.id STARTS WITH 'field_' OR downstream.id STARTS WITH 'class_' OR downstream.id STARTS WITH 'iface_') " +
+                   "RETURN downstream AS node, type(r) as relType";
         } else {
             // 暂不支持多层深度
             throw new UnsupportedOperationException("暂不支持深度 > 1 的查询");
