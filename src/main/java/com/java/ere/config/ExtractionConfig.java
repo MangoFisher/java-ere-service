@@ -76,6 +76,7 @@ public class ExtractionConfig {
         relations.clear();
         relations.put("calls", true);
         relations.put("overrides", false);
+        relations.put("extends", false);
         relations.put("has_parameter", false);
         relations.put("returns", false);
         relations.put("accesses", false);
@@ -99,6 +100,7 @@ public class ExtractionConfig {
         relations.clear();
         relations.put("calls", true);
         relations.put("overrides", false);  // 暂不开启，耗时极高
+        relations.put("extends", true);     // 建议开启，用于父类影响分析
         relations.put("has_parameter", true);
         relations.put("returns", true);
         relations.put("accesses", false);  
@@ -122,6 +124,7 @@ public class ExtractionConfig {
         relations.clear();
         relations.put("calls", true);
         relations.put("overrides", true);        // ⚠️ 耗时极高
+        relations.put("extends", true);
         relations.put("has_parameter", true);
         relations.put("returns", true);
         relations.put("accesses", true);         

@@ -21,6 +21,10 @@ public class SourceExtractor {
     public SourceExtractor(String projectRoot) {
         this.projectRoot = projectRoot;
     }
+    
+    public String getProjectRoot() {
+        return projectRoot;
+    }
 
     /**
      * 为实体提取源码

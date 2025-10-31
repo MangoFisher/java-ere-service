@@ -46,7 +46,10 @@ public class ContextAnalysisService {
         // 2. 查询Neo4j获取上下游关系并提取源码
         enrichWithNeo4jData(targetClassName, classContext);
         
-        // 3. 构建输出结果
+        // 3. 提取最新源码（仅该类源码）
+        extractLatestSourceCode(targetClassName, classContext);
+        
+        // 4. 构建输出结果
         ContextOutput result = new ContextOutput();
         result.put(targetClassName, classContext);
         
@@ -166,6 +169,76 @@ public class ContextAnalysisService {
         }
         
         return sourceCodes;
+    }
+    
+    /**
+     * 提取最新源码（仅该类源码）
+     * 通过类名和文件路径提取整个类的源码
+     */
+    private void extractLatestSourceCode(String className, ContextOutput.ClassContext classContext) {
+        try {
+            String filePath = classContext.getFilePath();
+            if (filePath == null || filePath.isEmpty()) {
+                System.out.println("类 " + className + " 的文件路径为空，跳过源码提取");
+                return;
+            }
+            
+            System.out.println("提取最新源码: " + className + " from " + filePath);
+            
+            // 读取整个文件内容
+            String sourceCode = extractClassSourceCode(filePath);
+            if (sourceCode != null && !sourceCode.trim().isEmpty()) {
+                // latestSourceCode是数组，将源码作为列表的一个元素
+                classContext.getLatestSourceCode().clear();
+                classContext.getLatestSourceCode().add(sourceCode);
+                System.out.println("成功提取最新源码，长度: " + sourceCode.length() + " 字符");
+            } else {
+                System.out.println("未提取到源码");
+            }
+        } catch (Exception e) {
+            System.err.println("提取最新源码失败: " + className + " - " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 提取整个类的源码
+     */
+    private String extractClassSourceCode(String filePath) {
+        try {
+            // 解析文件路径：优先支持绝对路径；若为相对路径，则基于projectRoot解析
+            java.io.File file = resolveFilePath(filePath);
+            if (!file.exists()) {
+                System.err.println("文件不存在: " + file.getAbsolutePath());
+                return null;
+            }
+            
+            // 读取整个文件内容
+            byte[] fileBytes = java.nio.file.Files.readAllBytes(file.toPath());
+            return new String(fileBytes);
+        } catch (Exception e) {
+            System.err.println("读取文件失败: " + filePath + " - " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * 解析文件路径：优先支持绝对路径；若为相对路径，则基于projectRoot解析
+     */
+    private java.io.File resolveFilePath(String path) {
+        if (path == null || path.isEmpty()) {
+            return new java.io.File("");
+        }
+        java.io.File direct = new java.io.File(path);
+        if (direct.isAbsolute()) {
+            return direct;
+        }
+        // 相对路径：拼接projectRoot
+        String projectRoot = sourceExtractor.getProjectRoot();
+        if (projectRoot != null && !projectRoot.isEmpty()) {
+            java.io.File joined = java.nio.file.Paths.get(projectRoot, path).toFile();
+            return joined;
+        }
+        return direct;
     }
     
     /**

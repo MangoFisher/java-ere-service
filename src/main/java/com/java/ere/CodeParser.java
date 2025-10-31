@@ -377,6 +377,12 @@ public class CodeParser {
     }
 
     private void buildRelations(CompilationUnit cu, Map<String, Entity> entities) {
+        // 构建类级别的关系（extends, implements）
+        if (extractionConfig.isRelationEnabled("extends") && 
+            extractionConfig.isEntityEnabled("ClassOrInterface")) {
+            buildExtendsRelations(cu, entities);
+        }
+        
         // 构建类级别的关系（implements）
         if (extractionConfig.isRelationEnabled("implements") && 
             extractionConfig.isEntityEnabled("ClassOrInterface")) {
@@ -402,6 +408,30 @@ public class CodeParser {
         // 构建overrides关系
         if (extractionConfig.isRelationEnabled("overrides")) {
             buildOverridesRelations(cu, entities);
+        }
+    }
+
+    /**
+     * 构建extends关系（类继承与接口继承）
+     */
+    private void buildExtendsRelations(CompilationUnit cu, Map<String, Entity> entities) {
+        for (ClassOrInterfaceDeclaration classDecl : cu.findAll(ClassOrInterfaceDeclaration.class)) {
+            String currentName = classDecl.getNameAsString();
+            boolean isInterface = classDecl.isInterface();
+            String currentId = (isInterface ? "iface_" : "class_") + currentName;
+            Entity currentEntity = entities.get(currentId);
+            if (currentEntity == null) {
+                continue;
+            }
+
+            // 接口 extends 接口；类 extends 类
+            classDecl.getExtendedTypes().forEach(extendedType -> {
+                String parentName = extendedType.getNameAsString();
+                String parentId = (isInterface ? "iface_" : "class_") + parentName;
+                if (entities.containsKey(parentId)) {
+                    currentEntity.addRelation("extends", parentId);
+                }
+            });
         }
     }
     

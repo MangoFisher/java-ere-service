@@ -121,7 +121,7 @@ extraction:
   #
   #   impact_analysis: 影响范围分析（实体5个 + 关系3个）- 推荐
   #               - 实体: ClassOrInterface, Method, Parameter, Return, Field
-  #               - 关系: calls, has_parameter, returns
+  #               - 关系: calls, has_parameter, returns, extends
   #               - 性能: 中等（~15秒）
   #
   #   full: 完整分析（实体6个 + 关系8个）
@@ -148,6 +148,7 @@ extraction:
   relations:
     calls: true # ✅ 已实现 | 方法调用（核心关系）
     overrides: false # ❌ 未实现 | 方法重写（⚠️ 耗时极高）
+    extends: true # ✅ 新增 | 继承关系（类/接口层次）
     has_parameter: true # ✅ 已实现 | 参数关系
     returns: true # ✅ 已实现 | 返回值关系
     accesses: false # ❌ 未实现 | 字段访问

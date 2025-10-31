@@ -23,10 +23,12 @@ public class ContextOutput extends HashMap<String, ContextOutput.ClassContext> {
         private List<EntityContext> Method;  // 由单个改为列表
         private EntityContext ClassOrInterface;
         private String filePath; // 新增：类对应的文件路径
+        private List<String> latestSourceCode; // 最新源码（整个类的源码）
         
         public ClassContext() {
             this.Field = new ArrayList<>();
             this.Method = new ArrayList<>();
+            this.latestSourceCode = new ArrayList<>();
         }
         
         public List<EntityContext> getField() { return Field; }
@@ -39,6 +41,9 @@ public class ContextOutput extends HashMap<String, ContextOutput.ClassContext> {
 
         public String getFilePath() { return filePath; }
         public void setFilePath(String filePath) { this.filePath = filePath; }
+        
+        public List<String> getLatestSourceCode() { return latestSourceCode; }
+        public void setLatestSourceCode(List<String> latestSourceCode) { this.latestSourceCode = latestSourceCode; }
     }
     
     /**

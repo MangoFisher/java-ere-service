@@ -37,6 +37,7 @@
 - throws（抛出异常）⭐⭐⭐⭐
 - implements（接口实现）⭐⭐⭐
 - has_annotation（注解关系）⭐⭐⭐
+- extends 类之间的继承关系
 
 ---
 
@@ -877,6 +878,8 @@ RETURN caller
 // 结果：这些调用者需要更新返回值处理逻辑
 ```
 
+### 9. extends (类的继承关系)
+   -待补充
 
 ## 📊 综合评分表
 

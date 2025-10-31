@@ -32,7 +32,7 @@ public class ExportToNeo4jMain {
             }
             
             if (args.length >= 2) {
-                cypherFile = args[2];
+                cypherFile = args[1];
             } else {
                 // Cypher文件也输出到extract_out目录
                 cypherFile = "extract_out/neo4j-import.cypher";
@@ -79,7 +79,8 @@ public class ExportToNeo4jMain {
             e.printStackTrace();
             System.err.println("\n使用方法:");
             System.err.println("  mvn exec:java -Dexec.mainClass=\"com.java.ere.entry.ExportToNeo4jMain\"");
-            System.err.println("  mvn exec:java -Dexec.mainClass=\"com.java.ere.entry.ExportToNeo4jMain\" -Dexec.args=\"result.json\"");
+            System.err.println("  mvn exec:java -Dexec.mainClass=\"com.java.ere.entry.ExportToNeo4jMain\" -Dexec.args=\"<input.json>\"");
+            System.err.println("  mvn exec:java -Dexec.mainClass=\"com.java.ere.entry.ExportToNeo4jMain\" -Dexec.args=\"<input.json> <output.cypher>\"");
         }
     }
     
